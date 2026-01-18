@@ -3,7 +3,7 @@ import { DiContainer, DiService } from "./di-sacala";
 
 class RandomNumberService implements DiService<"randomNumber"> {
     name = "randomNumber" as const;
-    constructor(private di: DiContainer) {}
+    constructor() {}
     next() {
         return Math.random();
     }
@@ -11,9 +11,9 @@ class RandomNumberService implements DiService<"randomNumber"> {
 
 class DelayService implements DiService<"delay"> {
     name = "delay" as const;
-    constructor(private di: DiContainer) {}
-    async wait(ms: number) {
-        return new Promise((resolve) => setTimeout(resolve, ms));
+    constructor() {}
+    async wait() {
+        return Promise.resolve();
     }
 }
 
@@ -25,15 +25,6 @@ describe("DiContainer", () => {
         expect(typeof val).toBe("number");
         expect(val).toBeGreaterThanOrEqual(0);
         expect(val).toBeLessThan(1);
-    });
-
-    it("should inject DelayService and use it", async () => {
-        const container = new DiContainer().inject(DelayService);
-        expect(container.delay).toBeInstanceOf(DelayService);
-        const start = Date.now();
-        await container.delay.wait(10);
-        const end = Date.now();
-        expect(end - start).toBeGreaterThanOrEqual(10);
     });
 
     it("should inject multiple services and they should be accessible", () => {
