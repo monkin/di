@@ -1,5 +1,7 @@
 # di-sacala
 
+[![Tests](https://github.com/monkin/di-sacala/actions/workflows/test.yml/badge.svg)](https://github.com/monkin/di-sacala/actions/workflows/test.yml)
+
 Small type-safe dependency injection lib
 
 ## Development
