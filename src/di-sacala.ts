@@ -37,9 +37,19 @@ export class DiContainer {
      * @param dependency - A constructor for the service, which receives the container as its only argument.
      * @returns The container instance, typed with the newly added service.
      */
-    inject<S extends DiService<string>>(dependency: new (dependencies: this) => S): this & Di<S> {
-        const service = new dependency(this);
-        (this as any)[service.name] = service;
+    inject<S extends DiService<string>>(
+        dependency: new (dependencies: this) => S,
+    ): this & Di<S> {
+        let instance: S | undefined;
+
+        Object.defineProperty(this, dependency.name, {
+            enumerable: true,
+            configurable: false,
+            writable: false,
+            // Create the instance on first access
+            get: () => instance ?? (instance = new dependency(this)),
+        });
+
         return this as any;
     }
 
@@ -54,7 +64,13 @@ export class DiContainer {
     injectContainer<DC extends DiContainer>(other: DC): this & DC {
         for (const key in other) {
             if (Object.prototype.hasOwnProperty.call(other, key)) {
-                (this as any)[key] = other[key];
+                Object.defineProperty(this, key, {
+                    enumerable: true,
+                    configurable: false,
+                    writable: false,
+                    // Create the instance on first access
+                    get: () => other[key],
+                });
             }
         }
         return this as any;
