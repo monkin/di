@@ -51,9 +51,10 @@ export class DiContainer {
         Object.defineProperty(this, dependency.prototype.getName(), {
             enumerable: true,
             configurable: false,
-            writable: false,
-            // Create the instance on first access
-            get: () => instance ?? (instance = new dependency(this)),
+            get: () => {
+                // Create the instance on first access
+                return instance ?? (instance = new dependency(this));
+            },
         });
 
         return this as any;
@@ -73,8 +74,6 @@ export class DiContainer {
                 Object.defineProperty(this, key, {
                     enumerable: true,
                     configurable: false,
-                    writable: false,
-                    // Create the instance on first access
                     get: () => other[key],
                 });
             }
