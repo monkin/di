@@ -122,5 +122,5 @@ npm run format:check  # Check code formatting
 
 ## License
 
-ISC
+MIT
 
