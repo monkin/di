@@ -4,7 +4,7 @@
     "description": "Small type-safe dependency injection lib",
     "type": "module",
     "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
+    "types": "./dist/di-sacala.d.ts",
     "files": [
         "dist"
     ],
