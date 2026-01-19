@@ -110,10 +110,8 @@ export class DiContainer {
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (const key in other) {
-            if (has(other, key)) {
-                if (has(this, key)) {
-                    throw new Error(`Containers have duplicated keys: ${key}`);
-                }
+            if (has(other, key) && has(this, key)) {
+                throw new Error(`Containers have duplicated keys: ${key}`);
             }
         }
 
