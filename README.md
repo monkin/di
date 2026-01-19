@@ -9,7 +9,7 @@
 - **Full Type Safety**: Get autocompletion and type checks for all your injected services.
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Container Composition**: Merge multiple containers together to share dependencies across different parts of your application.
-- **Lazy Construction**: Services are instantiated only on demand (when first accessed).
+- **Lazy & Singleton**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
 - **Zero Runtime Dependencies**: Extremely lightweight.
 
 ## Installation
@@ -22,13 +22,13 @@ npm install di-sacala
 
 ### 1. Defining a Service
 
-A service is a class that implements the `DiService` interface. It must implement a `getName()` method which will be used as the key in the container. Use `as const` to ensure the name is treated as a literal type.
+A service is a class that implements the `DiService` interface. It must implement a `getServiceName()` method which will be used as the key in the container. Use `as const` to ensure the name is treated as a literal type.
 
 ```typescript
 import { DiService } from 'di-sacala';
 
 export class LoggerService implements DiService<"logger"> {
-    getName() {
+    getServiceName() {
         return "logger" as const;
     }
     
@@ -55,14 +55,14 @@ container.logger.log("Service is ready!");
 
 ### 3. Services with Dependencies
 
-To inject dependencies into a service, define its constructor to accept the container. You can use the `Di` type helper to specify which services are required.
+To inject dependencies into a service, define its constructor to accept the container. You can use the `Di<T>` type helper to specify which services are required. It supports both a single service type or a tuple of multiple services.
 
 ```typescript
 import { Di, DiService } from 'di-sacala';
 import { LoggerService } from './LoggerService';
 
 export class UserService implements DiService<"user"> {
-    getName() {
+    getServiceName() {
         return "user" as const;
     }
     
@@ -96,9 +96,9 @@ const appContainer = new DiContainer()
     .inject(MainApp);
 ```
 
-### 5. Lazy Construction
+### 5. Lazy & Singleton
 
-Services registered via `inject` are only instantiated when they are first accessed. This allows for efficient container initialization and avoids unnecessary work for services that might not be used in certain execution paths.
+Services registered via `inject` are only instantiated when they are first accessed. Once created, the same instance is returned for all subsequent calls. This ensures efficiency and consistent state within the container.
 
 ```typescript
 const container = new DiContainer()
