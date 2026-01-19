@@ -27,15 +27,20 @@ export type Di<S> = S extends [infer S1, ...infer Tail]
         ? { [Key in Name]: S }
         : never;
 
+const ReservedFields = new Set(["inject", "injectContainer"] as const);
+
 type CheckReservedField<Name, T> = Name extends keyof DiContainer
     ? `Reserved field name: ${Name}`
     : T;
 
 type Append<Container, Service extends DiService<string>> =
     Service extends DiService<infer Name>
-        ? Container extends { [Key in Name]: unknown }
-            ? `Duplicate service name: ${Name}`
-            : CheckReservedField<Name, Container & Di<Service>>
+        ? CheckReservedField<
+              Name,
+              Container extends { [Key in Name]: unknown }
+                  ? `Duplicate service name: ${Name}`
+                  : Container & Di<Service>
+          >
         : never;
 
 type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
@@ -72,6 +77,11 @@ export class DiContainer {
         dependency: new (dependencies: this) => S,
     ): Append<this, S> {
         const name = dependency.prototype.getServiceName();
+
+        if (ReservedFields.has(name)) {
+            throw new Error(`Reserved field name: ${name}`);
+        }
+
         if (has(this, name)) {
             throw new Error(`Duplicate service name: ${name}`);
         }

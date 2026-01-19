@@ -128,6 +128,27 @@ const container = new DiContainer()
 container.inject(AnotherLoggerService); 
 ```
 
+### 7. Reserved Field Names
+
+Since `DiContainer` uses a fluent API, certain names are reserved for its internal methods and cannot be used as service names:
+
+- `inject`
+- `injectContainer`
+
+Similar to duplicate names, attempting to use a reserved name will trigger both a **Type-level Check** and a **Runtime Check**.
+
+```typescript
+class InjectService implements DiService<"inject"> {
+    getServiceName() { return "inject" as const; }
+}
+
+const container = new DiContainer();
+
+// TypeScript Error: Type '"Reserved field name: inject"' ...
+// Runtime Error: Reserved field name: inject
+container.inject(InjectService);
+```
+
 ## Development
 
 ### Installation
