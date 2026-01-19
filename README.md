@@ -112,6 +112,22 @@ console.log("Container ready");
 container.expensive.doSomething();
 ```
 
+### 6. Duplicate Service Name Protection
+
+`di-sacala` prevents registering multiple services with the same name. This protection works at both compile-time and runtime:
+
+- **Type-level Check**: If you try to `inject` a service with a name that already exists in the container, TypeScript will report an error, and the resulting type will be a string literal describing the error.
+- **Runtime Check**: The `inject` and `injectContainer` methods will throw an `Error` if a duplicate key is detected.
+
+```typescript
+const container = new DiContainer()
+    .inject(LoggerService);
+
+// TypeScript Error: Type '"Duplicate service name: logger"' ...
+// Runtime Error: Duplicate service name: logger
+container.inject(AnotherLoggerService); 
+```
+
 ## Development
 
 ### Installation

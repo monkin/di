@@ -59,6 +59,7 @@ export class DiContainer {
      * @template S - The type of service being injected.
      * @param dependency - A constructor for the service, which receives the container as its only argument.
      * @returns The container instance, typed with the newly added service.
+     * @throws {Error} If a service with the same name is already registered.
      */
     inject<S extends DiService<string>>(
         dependency: new (dependencies: this) => S,
@@ -89,6 +90,7 @@ export class DiContainer {
      * @template DC - The type of the other DiContainer.
      * @param other - The source container to copy services from.
      * @returns The current container instance, typed with the merged services.
+     * @throws {Error} If any service name from the other container already exists in this container.
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (const key in other) {
