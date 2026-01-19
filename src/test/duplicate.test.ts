@@ -1,4 +1,4 @@
-import { assertType, describe, it } from "vitest";
+import { assertType, describe, expect, it } from "vitest";
 import { DiContainer, DiService } from "../di-sacala";
 
 class S1 implements DiService<"s1"> {
@@ -22,8 +22,14 @@ class S2 implements DiService<"s2"> {
 describe("Duplicated services", () => {
     it("should return error type when injecting duplicated service name", () => {
         const container = new DiContainer().inject(S1);
-        const result = container.inject(S1_Duplicate);
 
+        expect(() => container.inject(S1_Duplicate)).toThrow(
+            "Duplicate service name: s1",
+        );
+
+        const result = null as any as ReturnType<
+            typeof container.inject<S1_Duplicate>
+        >;
         assertType<"Duplicate service name: s1">(result);
     });
 
@@ -31,8 +37,13 @@ describe("Duplicated services", () => {
         const c1 = new DiContainer().inject(S1);
         const c2 = new DiContainer().inject(S1_Duplicate);
 
-        const result = c1.injectContainer(c2);
+        expect(() => c1.injectContainer(c2)).toThrow(
+            "Containers have duplicated keys: s1",
+        );
 
+        const result = null as any as ReturnType<
+            typeof c1.injectContainer<typeof c2>
+        >;
         assertType<"Containers have duplicated keys: s1">(result);
     });
 

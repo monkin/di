@@ -63,9 +63,14 @@ export class DiContainer {
     inject<S extends DiService<string>>(
         dependency: new (dependencies: this) => S,
     ): Append<this, S> {
+        const name = dependency.prototype.getName();
+        if (Object.prototype.hasOwnProperty.call(this, name)) {
+            throw new Error(`Duplicate service name: ${name}`);
+        }
+
         let instance: S | undefined;
 
-        Object.defineProperty(this, dependency.prototype.getName(), {
+        Object.defineProperty(this, name, {
             enumerable: true,
             configurable: false,
             get: () => {
@@ -88,10 +93,18 @@ export class DiContainer {
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (const key in other) {
             if (Object.prototype.hasOwnProperty.call(other, key)) {
+                if (Object.prototype.hasOwnProperty.call(this, key)) {
+                    throw new Error(`Containers have duplicated keys: ${key}`);
+                }
+            }
+        }
+
+        for (const key in other) {
+            if (Object.prototype.hasOwnProperty.call(other, key)) {
                 Object.defineProperty(this, key, {
                     enumerable: true,
                     configurable: false,
-                    get: () => other[key],
+                    get: () => (other as any)[key],
                 });
             }
         }
