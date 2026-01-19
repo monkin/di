@@ -56,13 +56,16 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
 const has = (obj: object, key: string | number | symbol): boolean =>
     Object.prototype.hasOwnProperty.call(obj, key);
 
-function eachOwn<T extends object>(obj: T, callback: (key: keyof T) => void) {
+const eachOwn = <T extends object>(
+    obj: T,
+    callback: (key: keyof T) => void,
+) => {
     for (const key in obj) {
         if (has(obj, key)) {
             callback(key as keyof T);
         }
     }
-}
+};
 
 const fail = (message: string): never => {
     throw new Error(message);
