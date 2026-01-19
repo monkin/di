@@ -56,6 +56,14 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
 const has = (obj: object, key: string | number | symbol): boolean =>
     Object.prototype.hasOwnProperty.call(obj, key);
 
+function eachOwn<T extends object>(obj: T, callback: (key: keyof T) => void) {
+    for (const key in obj) {
+        if (has(obj, key)) {
+            callback(key as keyof T);
+        }
+    }
+}
+
 const fail = (message: string): never => {
     throw new Error(message);
 };
@@ -80,7 +88,7 @@ export class DiContainer {
     inject<S extends DiService<string>>(
         dependency: new (dependencies: this) => S,
     ): Append<this, S> {
-        const name = dependency.prototype.getServiceName();
+        const name = dependency.prototype.getServiceName.call(null);
 
         if (ReservedFields.has(name)) {
             fail(`Reserved field name: ${name}`);
@@ -113,20 +121,18 @@ export class DiContainer {
      * @throws {Error} If any service name from the other container already exists in this container.
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
-        for (const key in other) {
-            if (has(other, key) && has(this, key)) {
-                fail(`Containers have duplicated keys: ${key}`);
+        eachOwn(other, (key) => {
+            if (has(this, key)) {
+                fail(`Containers have duplicated keys: ${String(key)}`);
             }
-        }
+        });
 
-        for (const key in other) {
-            if (has(other, key)) {
-                Object.defineProperty(this, key, {
-                    enumerable: true,
-                    get: () => (other as any)[key],
-                });
-            }
-        }
+        eachOwn(other, (key) => {
+            Object.defineProperty(this, key, {
+                enumerable: true,
+                get: () => (other as any)[key],
+            });
+        });
         return this as any;
     }
 }
