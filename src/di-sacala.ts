@@ -34,6 +34,16 @@ type Append<Container, Service extends DiService<string>> =
             : Container & Di<Service>
         : never;
 
+type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
+    Exclude<DI2, "inject" | "injectContainer"> extends never
+    ? DI1 & DI2
+    : `Containers have duplicated keys: ${(Exclude<
+          keyof DI1,
+          "inject" | "injectContainer"
+      > &
+          Exclude<DI2, "inject" | "injectContainer">) &
+          string}`;
+
 /**
  * DiContainer manages service instantiation and dependency resolution.
  * It uses a fluent interface to chain service registrations, dynamically
@@ -75,7 +85,7 @@ export class DiContainer {
      * @param other - The source container to copy services from.
      * @returns The current container instance, typed with the merged services.
      */
-    injectContainer<DC extends DiContainer>(other: DC): this & DC {
+    injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (const key in other) {
             if (Object.prototype.hasOwnProperty.call(other, key)) {
                 Object.defineProperty(this, key, {
