@@ -2,19 +2,19 @@ import { assertType, describe, expect, it } from "vitest";
 import { DiContainer, DiService } from "../di-sacala";
 
 class S1 implements DiService<"s1"> {
-    getName() {
+    getServiceName() {
         return "s1" as const;
     }
 }
 
 class S1_Duplicate implements DiService<"s1"> {
-    getName() {
+    getServiceName() {
         return "s1" as const;
     }
 }
 
 class S2 implements DiService<"s2"> {
-    getName() {
+    getServiceName() {
         return "s2" as const;
     }
 }

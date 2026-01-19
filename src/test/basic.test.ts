@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { Di, DiContainer, DiService } from "../di-sacala";
 
 class RandomNumberService implements DiService<"randomNumber"> {
-    getName() {
+    getServiceName() {
         return "randomNumber" as const;
     }
     next() {
@@ -11,7 +11,7 @@ class RandomNumberService implements DiService<"randomNumber"> {
 }
 
 class DelayService implements DiService<"delay"> {
-    getName() {
+    getServiceName() {
         return "delay" as const;
     }
     async wait() {
@@ -20,7 +20,7 @@ class DelayService implements DiService<"delay"> {
 }
 
 class IdService implements DiService<"id"> {
-    getName() {
+    getServiceName() {
         return "id" as const;
     }
     private counter = 0;
@@ -51,7 +51,7 @@ describe("DiContainer", () => {
 
     it("should allow a service to depend on another service", () => {
         class DependentService implements DiService<"dependent"> {
-            getName() {
+            getServiceName() {
                 return "dependent" as const;
             }
             constructor(

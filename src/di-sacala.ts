@@ -9,7 +9,7 @@ export interface DiService<Name extends string> {
      *
      * The method is called without an instance context, so it can be used as a static property.
      */
-    getName(this: null): Name;
+    getServiceName(this: null): Name;
 }
 
 /**
@@ -67,7 +67,7 @@ export class DiContainer {
     inject<S extends DiService<string>>(
         dependency: new (dependencies: this) => S,
     ): Append<this, S> {
-        const name = dependency.prototype.getName();
+        const name = dependency.prototype.getServiceName();
         if (has(this, name)) {
             throw new Error(`Duplicate service name: ${name}`);
         }
