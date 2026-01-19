@@ -1,12 +1,33 @@
 # di-sacala
 
 [![Tests](https://github.com/monkin/di-sacala/actions/workflows/test.yml/badge.svg)](https://github.com/monkin/di-sacala/actions/workflows/test.yml)
+[![NPM version](https://img.shields.io/npm/v/di-sacala.svg)](https://www.npmjs.com/package/di-sacala)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Bundle Size](https://img.shields.io/bundlephobia/min/di-sacala)](https://bundlephobia.com/package/di-sacala)
 
 `di-sacala` is a lightweight, type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+
+## Table of Contents
+
+- [Features](#features)
+- [Motivation](#motivation)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [1. Defining a Service](#1-defining-a-service)
+  - [2. Basic Injection](#2-basic-injection)
+  - [3. Services with Dependencies](#3-services-with-dependencies)
+  - [4. Merging Containers](#4-merging-containers)
+  - [5. Lazy & Singleton](#5-lazy--singleton)
+  - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
+  - [7. Reserved Field Names](#7-reserved-field-names)
+- [API Reference](#api-reference)
+- [Development](#development)
+- [License](#license)
 
 ## Features
 
 - **Full Type Safety**: Get autocompletion and type checks for all your injected services.
+- **No Decorators**: No need for `reflect-metadata` or experimental decorators. Pure TypeScript.
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Container Composition**: Merge multiple containers together to share dependencies across different parts of your application.
 - **Lazy & Singleton**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
@@ -60,23 +81,29 @@ To inject dependencies into a service, define its constructor to accept the cont
 ```typescript
 import { Di, DiService } from 'di-sacala';
 import { LoggerService } from './LoggerService';
+import { ConfigService } from './ConfigService';
 
 export class UserService implements DiService<"user"> {
     getServiceName() {
         return "user" as const;
     }
     
-    // Use Di<ServiceType> or Di<[Service1, Service2]> for type-safe dependencies
-    constructor(private di: Di<LoggerService>) {}
+    // Single dependency:
+    // constructor(private di: Di<LoggerService>) {}
+
+    // Multiple dependencies using a tuple:
+    constructor(private di: Di<[LoggerService, ConfigService]>) {}
 
     getUser(id: string) {
-        this.di.logger.log(`Fetching user: ${id}`);
+        const prefix = this.di.config.get("userPrefix");
+        this.di.logger.log(`Fetching user: ${prefix}${id}`);
         return { id, name: "User " + id };
     }
 }
 
 const container = new DiContainer()
     .inject(LoggerService)
+    .inject(ConfigService)
     .inject(UserService);
 
 container.user.getUser("42");
@@ -148,6 +175,31 @@ const container = new DiContainer();
 // Runtime Error: Reserved field name: inject
 container.inject(InjectService);
 ```
+
+## API Reference
+
+### `DiContainer`
+
+The main class for managing services.
+
+- `inject(ServiceClass: new (di: this) => S): DiContainer & Di<S>`
+  Registers a service class. Returns the container instance, typed with the newly added service.
+- `injectContainer(other: DiContainer): DiContainer & ...`
+  Copies all services from another container into this one.
+
+### `DiService<Name>`
+
+An interface that your service classes must implement.
+
+- `getServiceName(this: null): Name`
+  Must return the unique name of the service as a string literal type.
+
+### `Di<S>`
+
+A utility type to help define dependencies in your service constructors.
+
+- `Di<ServiceClass>`: Resolves to an object with the service name as the key and the service instance as the value.
+- `Di<[Service1, Service2]>`: Resolves to a merged object containing all specified services.
 
 ## Development
 
