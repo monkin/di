@@ -9,14 +9,13 @@
 ## Table of Contents
 
 - [Features](#features)
-- [Motivation](#motivation)
 - [Installation](#installation)
 - [Usage](#usage)
   - [1. Defining a Service](#1-defining-a-service)
   - [2. Basic Injection](#2-basic-injection)
   - [3. Services with Dependencies](#3-services-with-dependencies)
   - [4. Merging Containers](#4-merging-containers)
-  - [5. Lazy & Singleton](#5-lazy--singleton)
+  - [5. Lazy](#5-lazy)
   - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
   - [7. Reserved Field Names](#7-reserved-field-names)
 - [API Reference](#api-reference)
@@ -29,7 +28,7 @@
 - **No Decorators**: No need for `reflect-metadata` or experimental decorators. Pure TypeScript.
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Container Composition**: Merge multiple containers together to share dependencies across different parts of your application.
-- **Lazy & Singleton**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
+- **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
 - **Zero Runtime Dependencies**: Extremely lightweight.
 
 ## Installation
@@ -122,9 +121,9 @@ const appContainer = new DiContainer()
     .inject(MainApp);
 ```
 
-### 5. Lazy & Singleton
+### 5. Lazy
 
-Services registered via `inject` are lazy by default. When you register a service, `di-sacala` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property, or check `instanceof`). Once created, the same instance is reused for all subsequent accesses (singleton).
+Services registered via `inject` are lazy by default. When you register a service, `di-sacala` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property). Once created, the same instance is reused for all subsequent accesses.
 
 ```typescript
 const container = new DiContainer()
@@ -152,7 +151,7 @@ const container = new DiContainer()
     .inject(LoggerService);
 
 // TypeScript Error: Type '"Duplicate service name: logger"' ...
-// Runtime Error: Duplicate service name: logger
+// Runtime Error: Duplicated service name: logger
 container.inject(AnotherLoggerService); 
 ```
 
@@ -173,7 +172,7 @@ class InjectService implements DiService<"inject"> {
 const container = new DiContainer();
 
 // TypeScript Error: Type '"Reserved field name: inject"' ...
-// Runtime Error: Reserved field name: inject
+// Runtime Error: Reserved service name: inject
 container.inject(InjectService);
 ```
 
@@ -183,10 +182,10 @@ container.inject(InjectService);
 
 The main class for managing services.
 
-- `inject(ServiceClass: new (di: this) => S): DiContainer & Di<S>`
+- `inject(ServiceClass: new (di: this) => S): this & Di<S>`
   Registers a service class. Returns the container instance, typed with the newly added service.
-- `injectContainer(other: DiContainer): DiContainer & ...`
-  Copies all services from another container into this one.
+- `injectContainer<DC extends DiContainer>(other: DC): this & DC`
+  Copies all services from another container into this one. Returns the container instance, typed with the merged services.
 
 ### `DiService<Name>`
 
