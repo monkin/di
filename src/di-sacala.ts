@@ -137,7 +137,7 @@ export class DiContainer {
             fail(`Reserved field name: ${name}`);
         }
 
-        if (has(this, name)) {
+        if (has(t, name)) {
             fail(`Duplicate service name: ${name}`);
         }
 

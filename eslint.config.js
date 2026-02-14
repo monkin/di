@@ -20,6 +20,7 @@ export default [
             ...tseslint.configs.recommended.rules,
             "@typescript-eslint/no-explicit-any": "off",
             "no-prototype-builtins": "off",
+            "@typescript-eslint/no-this-alias": "off",
         },
     },
 ];
