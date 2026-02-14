@@ -65,31 +65,21 @@ const fail = (message: string): never => {
  * extending its own type with each injected service.
  */
 export class DiContainer {
-    inject<S extends DiService<string>>(
-        dependency: new (dependencies: this) => S,
-    ): Append<this, S>;
-    inject<Name extends string, S>(
-        name: Name,
-        create: (dependencies: this) => S,
-    ): Append<this, S & DiService<Name>>;
-
     /**
      * Registers a new service by instantiating it with the current container instance.
      * The service is then attached to the container using its `name` property.
      */
-    inject<S>(
-        ...[p0, p1]:
-            | [dependency: new (dependencies: this) => S]
-            | [name: string, create: (dependencies: this) => S]
-    ): any {
+    inject<S extends DiService<string>>(
+        dependency: new (dependencies: this) => S,
+    ): Append<this, S> {
         let t = this;
-        let name: string = p1
-            ? p0
-            : (p0 as any).prototype.getServiceName.call(null);
+        let name: string = (dependency as any).prototype.getServiceName.call(
+            null,
+        );
         let instance: S | undefined;
         let getInstance = () =>
             instance ??
-            ((this as any)[name] = instance = p1?.(t) ?? new (p0 as any)(t));
+            ((this as any)[name] = instance = new (dependency as any)(t));
 
         if (ReservedFields.includes(name as any)) {
             fail(`Reserved field name: ${name}`);
