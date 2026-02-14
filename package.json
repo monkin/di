@@ -1,6 +1,6 @@
 {
     "name": "di-sacala",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "description": "Small type-safe dependency injection lib",
     "type": "module",
     "main": "./dist/index.js",
