@@ -10,7 +10,7 @@ export default defineConfig({
             name: "DiSacala",
             fileName: "index",
         },
-        minify: true,
+        minify: "terser",
     },
     plugins: [
         dts({ exclude: ["**/*.test.ts"] }),
