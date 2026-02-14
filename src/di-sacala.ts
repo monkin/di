@@ -52,7 +52,7 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
           string}`;
 
 let O = Object;
-let reservedFields = ["inject", "injectContainer"] as const;
+let reservedFields = /^inject(Container)?$/;
 let fail = (message: string): never => {
     throw new Error(message);
 };
@@ -71,15 +71,13 @@ export class DiContainer {
         dependency: new (dependencies: this) => S,
     ): Append<this, S> {
         let t = this;
-        let name: string = (dependency as any).prototype.getServiceName.call(
-            null,
-        );
+        let name: string = (dependency as any).prototype.getServiceName.call();
         let instance: S | undefined;
         let getInstance = () =>
             instance ??
             ((this as any)[name] = instance = new (dependency as any)(t));
 
-        if (reservedFields.includes(name as any)) {
+        if (reservedFields.test(name)) {
             fail(`Reserved field name: ${name}`);
         }
 
