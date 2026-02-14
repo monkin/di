@@ -51,10 +51,8 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
           Exclude<keyof DI2, "inject" | "injectContainer">) &
           string}`;
 
-let O = Object;
-let reservedFields = /^inject(Container)?$/;
 let fail = (message: string): never => {
-    throw new Error(message);
+    throw Error(message);
 };
 
 /**
@@ -70,24 +68,20 @@ export class DiContainer {
     inject<S extends DiService<string>>(
         dependency: new (dependencies: this) => S,
     ): Append<this, S> {
+        let prototype = dependency.prototype;
         let t = this;
-        let name: string = (dependency as any).prototype.getServiceName.call();
+        let name: string = (prototype as any).getServiceName.call();
         let instance: S | undefined;
         let getInstance = () =>
-            instance ??
-            ((this as any)[name] = instance = new (dependency as any)(t));
+            instance ||= ((t as any)[name] = new (dependency as any)(t));
 
-        if (reservedFields.test(name)) {
-            fail(`Reserved field name: ${name}`);
-        }
-
-        if (name in t) {
-            fail(`Duplicate service name: ${name}`);
+        if ((t as any)[name]) {
+            fail((/^inject(Container)?$/.test(name) ? "Reserv" : "Duplicat") + "ed service name: " + name);
         }
 
         // create the service on first property access
         (t as any)[name] = new Proxy(
-            {},
+            Object.create(prototype),
             {
                 get: (_, property) => {
                     let instance = getInstance();
@@ -95,10 +89,7 @@ export class DiContainer {
                     return typeof value == "function"
                         ? value.bind(instance)
                         : value;
-                },
-                getPrototypeOf: (): object | null => {
-                    return O.getPrototypeOf(getInstance());
-                },
+                }
             },
         );
 
@@ -117,10 +108,10 @@ export class DiContainer {
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (let key in other) {
             if (key in this) {
-                fail(`Containers have duplicated keys: ${key}`);
+                fail("Containers have duplicated keys: " + key);
             }
         }
 
-        return O.assign(this, other) as Merge<this, DC>;
+        return Object.assign(this, other) as Merge<this, DC>;
     }
 }
