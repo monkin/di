@@ -92,10 +92,41 @@ export class DiContainer {
             parameters.length === 1
                 ? parameters[0].prototype.getServiceName.call(null)
                 : parameters[0];
-        const create = () =>
-            parameters.length === 1
-                ? new parameters[0](this)
-                : parameters[1](this);
+
+        let instance: S | undefined;
+
+        const getInstance = () => {
+            if (!instance) {
+                instance =
+                    parameters.length === 1
+                        ? new parameters[0](this)
+                        : parameters[1](this);
+            }
+            return instance;
+        };
+
+        // create the service on first property access
+        const lazy = new Proxy(
+            {},
+            {
+                get: (_, property) => {
+                    const instance = getInstance();
+                    const value = (instance as any)[property];
+                    return value instanceof Function
+                        ? value.bind(instance)
+                        : value;
+                },
+                getPrototypeOf(): object | null {
+                    return Object.getPrototypeOf(getInstance());
+                },
+                has(_target: object, p: string | symbol): boolean {
+                    return has(getInstance() as object, p);
+                },
+                ownKeys(): ArrayLike<string | symbol> {
+                    return Object.getOwnPropertyNames(getInstance() as object);
+                },
+            },
+        );
 
         if (ReservedFields.has(name as any)) {
             fail(`Reserved field name: ${name}`);
@@ -105,14 +136,7 @@ export class DiContainer {
             fail(`Duplicate service name: ${name}`);
         }
 
-        let instance: S | undefined;
-
-        Object.defineProperty(this, name, {
-            enumerable: true,
-            get: () => {
-                return instance ?? (instance = create());
-            },
-        });
+        (this as any)[name] = lazy;
 
         return this as any;
     }
