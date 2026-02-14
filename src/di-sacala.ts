@@ -81,7 +81,9 @@ export class DiContainer {
      * @throws {Error} If a service with the same name is already registered.
      */
     inject<S extends DiService<string>>(
-        dependency: new (dependencies: this) => S,
+        dependency:
+            | (new (dependencies: this) => S)
+            | ((dependencies: this) => S),
     ): Append<this, S> {
         const name = dependency.prototype.getServiceName.call(null);
 
@@ -98,8 +100,21 @@ export class DiContainer {
         Object.defineProperty(this, name, {
             enumerable: true,
             get: () => {
-                // Create the instance on first access
-                return instance ?? (instance = new dependency(this));
+                if (instance === undefined) {
+                    try {
+                        // try to use `new` operator
+                        instance = new (dependency as new (
+                            dependencies: this,
+                        ) => S)(this);
+                    } catch {
+                        // fallback to function call
+                        instance = (dependency as (dependencies: this) => S)(
+                            this,
+                        );
+                    }
+                }
+
+                return instance;
             },
         });
 
