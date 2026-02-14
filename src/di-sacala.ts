@@ -90,8 +90,8 @@ export class DiContainer {
             {},
             {
                 get: (_, property) => {
-                    const instance = getInstance();
-                    const value = (instance as any)[property];
+                    let instance = getInstance();
+                    let value = (instance as any)[property];
                     return typeof value == "function"
                         ? value.bind(instance)
                         : value;
@@ -115,7 +115,7 @@ export class DiContainer {
      * @throws {Error} If any service name from the other container already exists in this container.
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
-        for (const key in other) {
+        for (let key in other) {
             if (key in this) {
                 fail(`Containers have duplicated keys: ${key}`);
             }
