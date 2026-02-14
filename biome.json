@@ -15,7 +15,8 @@
 	"linter": {
 		"rules": {
 			"style": {
-				"useConst": "off"
+				"useConst": "off",
+				"useTemplate": "off"
 			},
 			"suspicious": {
 				"noExplicitAny": "off",
