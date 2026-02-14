@@ -55,11 +55,6 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
           Exclude<keyof DI2, "inject" | "injectContainer">) &
           string}`;
 
-const has = (obj: object, key: string | number | symbol): boolean =>
-    obj.hasOwnProperty(key);
-
-const keys = (obj: object): (string | symbol)[] => O.getOwnPropertyNames(obj);
-
 const fail = (message: string): never => {
     throw new Error(message);
 };
@@ -70,8 +65,6 @@ const fail = (message: string): never => {
  * extending its own type with each injected service.
  */
 export class DiContainer {
-    constructor() {}
-
     inject<S extends DiService<string>>(
         dependency: new (dependencies: this) => S,
     ): Append<this, S>;
@@ -85,20 +78,23 @@ export class DiContainer {
      * The service is then attached to the container using its `name` property.
      */
     inject<S>(
-        ...parameters:
+        ...[p0, p1]:
             | [dependency: new (dependencies: this) => S]
             | [name: string, create: (dependencies: this) => S]
     ): any {
         const t = this;
-        let name: string;
-        let create: (dependencies: this) => S;
+        let name: string = p1
+            ? p0
+            : (p0 as any).prototype.getServiceName.call(null);
+        let create: (dependencies: this) => S =
+            (p1 as any) ?? ((dependencies) => new (p0 as any)(dependencies));
 
-        if (parameters.length == 1) {
-            name = parameters[0].prototype.getServiceName.call(null);
-            create = (dependencies) => new parameters[0](dependencies);
-        } else {
-            name = parameters[0];
-            create = parameters[1];
+        if (ReservedFields.has(name as any)) {
+            fail(`Reserved field name: ${name}`);
+        }
+
+        if (name in t) {
+            fail(`Duplicate service name: ${name}`);
         }
 
         let instance: S | undefined;
@@ -107,7 +103,7 @@ export class DiContainer {
             instance ?? ((this as any)[name] = instance = create(t));
 
         // create the service on first property access
-        const lazy = new Proxy(
+        (t as any)[name] = new Proxy(
             {},
             {
                 get: (_, property) => {
@@ -121,23 +117,13 @@ export class DiContainer {
                     return O.getPrototypeOf(getInstance());
                 },
                 has: (_target: object, p: string | symbol): boolean => {
-                    return has(getInstance() as object, p);
+                    return p in (getInstance() as object);
                 },
                 ownKeys: (): ArrayLike<string | symbol> => {
-                    return keys(getInstance() as object);
+                    return O.keys(getInstance() as object);
                 },
             },
         );
-
-        if (ReservedFields.has(name as any)) {
-            fail(`Reserved field name: ${name}`);
-        }
-
-        if (has(t, name)) {
-            fail(`Duplicate service name: ${name}`);
-        }
-
-        (t as any)[name] = lazy;
 
         return t as any;
     }
@@ -152,14 +138,12 @@ export class DiContainer {
      * @throws {Error} If any service name from the other container already exists in this container.
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
-        keys(other).forEach((key) => {
-            if (has(this, key)) {
-                fail(`Containers have duplicated keys: ${String(key)}`);
+        for (const key in other) {
+            if (key in this) {
+                fail(`Containers have duplicated keys: ${key}`);
             }
-        });
+        }
 
-        O.assign(this, other);
-
-        return this as any;
+        return O.assign(this, other) as Merge<this, DC>;
     }
 }
