@@ -12,6 +12,8 @@ export interface DiService<Name extends string> {
     getServiceName(this: null): Name;
 }
 
+const O = Object;
+
 /**
  * A recursive type transformation that converts a Service (or tuple of Services)
  * into a mapped object type.
@@ -54,10 +56,9 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
           string}`;
 
 const has = (obj: object, key: string | number | symbol): boolean =>
-    Object.prototype.hasOwnProperty.call(obj, key);
+    obj.hasOwnProperty(key);
 
-const eachOwn = <T extends object>(obj: T, callback: (key: keyof T) => void) =>
-    Object.keys(obj).forEach(callback as (key: string) => void);
+const keys = (obj: object): (string | symbol)[] => O.getOwnPropertyNames(obj);
 
 const fail = (message: string): never => {
     throw new Error(message);
@@ -88,19 +89,23 @@ export class DiContainer {
             | [dependency: new (dependencies: this) => S]
             | [name: string, create: (dependencies: this) => S]
     ): any {
-        const name: string =
-            parameters.length === 1
-                ? parameters[0].prototype.getServiceName.call(null)
-                : parameters[0];
+        const t = this;
+        let name: string;
+        let create: (dependencies: this) => S;
+
+        if (parameters.length == 1) {
+            name = parameters[0].prototype.getServiceName.call(null);
+            create = (dependencies) => new parameters[0](dependencies);
+        } else {
+            name = parameters[0];
+            create = parameters[1];
+        }
 
         let instance: S | undefined;
 
         const getInstance = () => {
             if (!instance) {
-                instance =
-                    parameters.length === 1
-                        ? new parameters[0](this)
-                        : parameters[1](this);
+                instance = create(t);
             }
             return instance;
         };
@@ -112,18 +117,18 @@ export class DiContainer {
                 get: (_, property) => {
                     const instance = getInstance();
                     const value = (instance as any)[property];
-                    return value instanceof Function
+                    return typeof value == "function"
                         ? value.bind(instance)
                         : value;
                 },
-                getPrototypeOf(): object | null {
-                    return Object.getPrototypeOf(getInstance());
+                getPrototypeOf: (): object | null => {
+                    return O.getPrototypeOf(getInstance());
                 },
-                has(_target: object, p: string | symbol): boolean {
+                has: (_target: object, p: string | symbol): boolean => {
                     return has(getInstance() as object, p);
                 },
-                ownKeys(): ArrayLike<string | symbol> {
-                    return Object.getOwnPropertyNames(getInstance() as object);
+                ownKeys: (): ArrayLike<string | symbol> => {
+                    return keys(getInstance() as object);
                 },
             },
         );
@@ -136,9 +141,9 @@ export class DiContainer {
             fail(`Duplicate service name: ${name}`);
         }
 
-        (this as any)[name] = lazy;
+        (t as any)[name] = lazy;
 
-        return this as any;
+        return t as any;
     }
 
     /**
@@ -151,18 +156,14 @@ export class DiContainer {
      * @throws {Error} If any service name from the other container already exists in this container.
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
-        eachOwn(other, (key) => {
+        keys(other).forEach((key) => {
             if (has(this, key)) {
                 fail(`Containers have duplicated keys: ${String(key)}`);
             }
         });
 
-        eachOwn(other, (key) => {
-            Object.defineProperty(this, key, {
-                enumerable: true,
-                get: () => (other as any)[key],
-            });
-        });
+        O.assign(this, other);
+
         return this as any;
     }
 }
