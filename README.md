@@ -20,6 +20,7 @@
   - [5. Lazy & Singleton](#5-lazy--singleton)
   - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
   - [7. Reserved Field Names](#7-reserved-field-names)
+- [8. Injection with Name and Function](#8-injection-with-name-and-function)
 - [API Reference](#api-reference)
 - [Development](#development)
 - [License](#license)
@@ -176,6 +177,26 @@ const container = new DiContainer();
 container.inject(InjectService);
 ```
 
+## 8. Injection with Name and Function
+
+Sometimes you might want to register a simple object or a result of a factory function without creating a full class. You can use the `inject(name, create)` overload for this.
+
+```typescript
+const container = new DiContainer()
+    .inject("config", () => ({
+        apiUrl: "https://api.example.com",
+        timeout: 5000
+    }))
+    .inject("apiClient", (deps) => ({
+        fetch: (path: string) => {
+            console.log(`Fetching from ${deps.config.apiUrl}${path}`);
+            // ...
+        }
+    }));
+
+container.apiClient.fetch("/users");
+```
+
 ## API Reference
 
 ### `DiContainer`
@@ -184,6 +205,8 @@ The main class for managing services.
 
 - `inject(ServiceClass: new (di: this) => S): DiContainer & Di<S>`
   Registers a service class. Returns the container instance, typed with the newly added service.
+- `inject(name: string, create: (di: this) => S): DiContainer & Di<S>`
+  Registers a service using a name and a factory function.
 - `injectContainer(other: DiContainer): DiContainer & ...`
   Copies all services from another container into this one.
 

@@ -71,23 +71,33 @@ const fail = (message: string): never => {
 export class DiContainer {
     constructor() {}
 
+    inject<S extends DiService<string>>(
+        dependency: new (dependencies: this) => S,
+    ): Append<this, S>;
+    inject<Name extends string, S>(
+        name: Name,
+        create: (dependencies: this) => S,
+    ): Append<this, S & DiService<Name>>;
+
     /**
      * Registers a new service by instantiating it with the current container instance.
      * The service is then attached to the container using its `name` property.
-     *
-     * @template S - The type of service being injected.
-     * @param dependency - A constructor for the service, which receives the container as its only argument.
-     * @returns The container instance, typed with the newly added service.
-     * @throws {Error} If a service with the same name is already registered.
      */
-    inject<S extends DiService<string>>(
-        dependency:
-            | (new (dependencies: this) => S)
-            | ((dependencies: this) => S),
-    ): Append<this, S> {
-        const name = dependency.prototype.getServiceName.call(null);
+    inject<S>(
+        ...parameters:
+            | [dependency: new (dependencies: this) => S]
+            | [name: string, create: (dependencies: this) => S]
+    ): any {
+        const name: string =
+            parameters.length === 1
+                ? parameters[0].prototype.getServiceName.call(null)
+                : parameters[0];
+        const create = () =>
+            parameters.length === 1
+                ? new parameters[0](this)
+                : parameters[1](this);
 
-        if (ReservedFields.has(name)) {
+        if (ReservedFields.has(name as any)) {
             fail(`Reserved field name: ${name}`);
         }
 
@@ -100,21 +110,7 @@ export class DiContainer {
         Object.defineProperty(this, name, {
             enumerable: true,
             get: () => {
-                if (instance === undefined) {
-                    try {
-                        // try to use `new` operator
-                        instance = new (dependency as new (
-                            dependencies: this,
-                        ) => S)(this);
-                    } catch {
-                        // fallback to function call
-                        instance = (dependency as (dependencies: this) => S)(
-                            this,
-                        );
-                    }
-                }
-
-                return instance;
+                return instance ?? (instance = create());
             },
         });
 
