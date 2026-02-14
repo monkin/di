@@ -12,8 +12,6 @@ export interface DiService<Name extends string> {
     getServiceName(this: null): Name;
 }
 
-const O = Object;
-
 /**
  * A recursive type transformation that converts a Service (or tuple of Services)
  * into a mapped object type.
@@ -28,8 +26,6 @@ export type Di<S> = S extends [infer S1, ...infer Tail]
       : S extends DiService<infer Name>
         ? { [Key in Name]: S }
         : never;
-
-const ReservedFields = ["inject", "injectContainer"] as const;
 
 type CheckReservedField<Name, T> = Name extends keyof DiContainer
     ? `Reserved field name: ${Name}`
@@ -55,7 +51,9 @@ type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
           Exclude<keyof DI2, "inject" | "injectContainer">) &
           string}`;
 
-const fail = (message: string): never => {
+let O = Object;
+let reservedFields = ["inject", "injectContainer"] as const;
+let fail = (message: string): never => {
     throw new Error(message);
 };
 
@@ -81,7 +79,7 @@ export class DiContainer {
             instance ??
             ((this as any)[name] = instance = new (dependency as any)(t));
 
-        if (ReservedFields.includes(name as any)) {
+        if (reservedFields.includes(name as any)) {
             fail(`Reserved field name: ${name}`);
         }
 
