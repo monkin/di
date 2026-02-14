@@ -3,7 +3,6 @@
 [![Tests](https://github.com/monkin/di-sacala/actions/workflows/test.yml/badge.svg)](https://github.com/monkin/di-sacala/actions/workflows/test.yml)
 [![NPM version](https://img.shields.io/npm/v/di-sacala.svg)](https://www.npmjs.com/package/di-sacala)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Bundle Size](https://img.shields.io/bundlephobia/min/di-sacala)](https://bundlephobia.com/package/di-sacala)
 
 `di-sacala` is a lightweight, type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
@@ -16,11 +15,11 @@
   - [1. Defining a Service](#1-defining-a-service)
   - [2. Basic Injection](#2-basic-injection)
   - [3. Services with Dependencies](#3-services-with-dependencies)
-  - [4. Merging Containers](#4-merging-containers)
-  - [5. Lazy & Singleton](#5-lazy--singleton)
-  - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
-  - [7. Reserved Field Names](#7-reserved-field-names)
-- [8. Injection with Name and Function](#8-injection-with-name-and-function)
+  - [4. Injection with Name and Function](#4-injection-with-name-and-function)
+  - [5. Merging Containers](#5-merging-containers)
+  - [6. Lazy & Singleton](#6-lazy--singleton)
+  - [7. Duplicate Service Name Protection](#7-duplicate-service-name-protection)
+  - [8. Reserved Field Names](#8-reserved-field-names)
 - [API Reference](#api-reference)
 - [Development](#development)
 - [License](#license)
@@ -110,7 +109,27 @@ const container = new DiContainer()
 container.user.getUser("42");
 ```
 
-### 4. Merging Containers
+### 4. Injection with Name and Function
+
+Sometimes you might want to register a simple object or a result of a factory function without creating a full class. You can use the `inject(name, create)` overload for this.
+
+```typescript
+const container = new DiContainer()
+    .inject("config", () => ({
+        apiUrl: "https://api.example.com",
+        timeout: 5000
+    }))
+    .inject("apiClient", (deps) => ({
+        fetch: (path: string) => {
+            console.log(`Fetching from ${deps.config.apiUrl}${path}`);
+            // ...
+        }
+    }));
+
+container.apiClient.fetch("/users");
+```
+
+### 5. Merging Containers
 
 You can create specialized containers and merge them into a main container using `injectContainer`.
 
@@ -124,23 +143,25 @@ const appContainer = new DiContainer()
     .inject(MainApp);
 ```
 
-### 5. Lazy & Singleton
+### 6. Lazy & Singleton
 
-Services registered via `inject` are only instantiated when they are first accessed. Once created, the same instance is returned for all subsequent calls. This ensures efficiency and consistent state within the container.
+Services registered via `inject` are lazy by default. When you register a service, `di-sacala` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property, or check `instanceof`). Once created, the same instance is reused for all subsequent accesses (singleton).
 
 ```typescript
 const container = new DiContainer()
     .inject(ExpensiveService);
 
 // ExpensiveService is NOT instantiated yet
+const service = container.expensive; 
+// Still NOT instantiated! `service` is a Proxy.
 
 console.log("Container ready");
 
-// ExpensiveService is instantiated NOW
-container.expensive.doSomething();
+// ExpensiveService is instantiated NOW because we access a property/method
+service.doSomething();
 ```
 
-### 6. Duplicate Service Name Protection
+### 7. Duplicate Service Name Protection
 
 `di-sacala` prevents registering multiple services with the same name. This protection works at both compile-time and runtime:
 
@@ -156,7 +177,7 @@ const container = new DiContainer()
 container.inject(AnotherLoggerService); 
 ```
 
-### 7. Reserved Field Names
+### 8. Reserved Field Names
 
 Since `DiContainer` uses a fluent API, certain names are reserved for its internal methods and cannot be used as service names:
 
@@ -175,26 +196,6 @@ const container = new DiContainer();
 // TypeScript Error: Type '"Reserved field name: inject"' ...
 // Runtime Error: Reserved field name: inject
 container.inject(InjectService);
-```
-
-## 8. Injection with Name and Function
-
-Sometimes you might want to register a simple object or a result of a factory function without creating a full class. You can use the `inject(name, create)` overload for this.
-
-```typescript
-const container = new DiContainer()
-    .inject("config", () => ({
-        apiUrl: "https://api.example.com",
-        timeout: 5000
-    }))
-    .inject("apiClient", (deps) => ({
-        fetch: (path: string) => {
-            console.log(`Fetching from ${deps.config.apiUrl}${path}`);
-            // ...
-        }
-    }));
-
-container.apiClient.fetch("/users");
 ```
 
 ## API Reference
