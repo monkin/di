@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { Di, DiContainer, DiService } from "../di-sacala";
 
 class RandomNumberService implements DiService<"randomNumber"> {

@@ -7,8 +7,7 @@ src/
 # Configuration files
 tsconfig.json
 vite.config.ts
-eslint.config.js
-.prettierrc
+biome.json
 
 # Tests
 **/*.test.ts

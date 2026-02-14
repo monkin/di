@@ -226,9 +226,9 @@ npm run test:watch  # Watch mode
 ### Linting & Formatting
 
 ```bash
-npm run lint          # Run ESLint
-npm run format        # Format code with Prettier
-npm run format:check  # Check code formatting
+npm run lint          # Run Biome check (lint, format, and import sorting)
+npm run format        # Format code with Biome
+npm run format:check  # Check code formatting with Biome
 ```
 
 ## License
