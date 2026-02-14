@@ -29,7 +29,7 @@ export type Di<S> = S extends [infer S1, ...infer Tail]
         ? { [Key in Name]: S }
         : never;
 
-const ReservedFields = new Set(["inject", "injectContainer"] as const);
+const ReservedFields = ["inject", "injectContainer"] as const;
 
 type CheckReservedField<Name, T> = Name extends keyof DiContainer
     ? `Reserved field name: ${Name}`
@@ -82,25 +82,22 @@ export class DiContainer {
             | [dependency: new (dependencies: this) => S]
             | [name: string, create: (dependencies: this) => S]
     ): any {
-        const t = this;
+        let t = this;
         let name: string = p1
             ? p0
             : (p0 as any).prototype.getServiceName.call(null);
-        let create: (dependencies: this) => S =
-            (p1 as any) ?? ((dependencies) => new (p0 as any)(dependencies));
+        let instance: S | undefined;
+        let getInstance = () =>
+            instance ??
+            ((this as any)[name] = instance = p1?.(t) ?? new (p0 as any)(t));
 
-        if (ReservedFields.has(name as any)) {
+        if (ReservedFields.includes(name as any)) {
             fail(`Reserved field name: ${name}`);
         }
 
         if (name in t) {
             fail(`Duplicate service name: ${name}`);
         }
-
-        let instance: S | undefined;
-
-        const getInstance = () =>
-            instance ?? ((this as any)[name] = instance = create(t));
 
         // create the service on first property access
         (t as any)[name] = new Proxy(
@@ -115,12 +112,6 @@ export class DiContainer {
                 },
                 getPrototypeOf: (): object | null => {
                     return O.getPrototypeOf(getInstance());
-                },
-                has: (_target: object, p: string | symbol): boolean => {
-                    return p in (getInstance() as object);
-                },
-                ownKeys: (): ArrayLike<string | symbol> => {
-                    return O.keys(getInstance() as object);
                 },
             },
         );
