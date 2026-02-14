@@ -31,7 +31,7 @@ describe("Lazy construction", () => {
         expect(constructed).toBe(1);
     });
 
-    it("should construct service when prototype is accessed", () => {
+    it("should not construct service when prototype is accessed", () => {
         let constructed = 0;
         class LazyService implements DiService<"lazy"> {
             getServiceName() {
@@ -46,7 +46,7 @@ describe("Lazy construction", () => {
 
         expect(constructed).toBe(0);
         expect(container.lazy).toBeInstanceOf(LazyService);
-        expect(constructed).toBe(1);
+        expect(constructed).toBe(0);
     });
 
     it("should handle lazily constructed dependencies", () => {

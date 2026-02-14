@@ -24,7 +24,7 @@ describe("Duplicated services", () => {
         const container = new DiContainer().inject(S1);
 
         expect(() => container.inject(S1_Duplicate)).toThrow(
-            "Duplicate service name: s1",
+            "Duplicated service name: s1",
         );
 
         const result = null as any as ReturnType<

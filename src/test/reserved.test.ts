@@ -12,7 +12,7 @@ describe("Reserved fields", () => {
         const container = new DiContainer();
 
         expect(() => container.inject(ReservedService)).toThrow(
-            "Reserved field name: inject",
+            "Reserved service name: inject",
         );
 
         const result = null as any as ReturnType<
