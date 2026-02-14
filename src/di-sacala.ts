@@ -103,12 +103,8 @@ export class DiContainer {
 
         let instance: S | undefined;
 
-        const getInstance = () => {
-            if (!instance) {
-                instance = create(t);
-            }
-            return instance;
-        };
+        const getInstance = () =>
+            instance ?? ((this as any)[name] = instance = create(t));
 
         // create the service on first property access
         const lazy = new Proxy(
