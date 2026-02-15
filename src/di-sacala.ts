@@ -97,7 +97,7 @@ export class DiContainer {
 
             if ((t as any)[name]) {
                 throw Error(
-                    (/^inject(Container|All)?$/.test(name)
+                    (/^inject(Container)?$/.test(name)
                         ? "Reserv"
                         : "Duplicat") +
                         "ed service name: " +
