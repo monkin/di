@@ -41,16 +41,29 @@ type Append<Container, Service extends DiService<string>> =
           >
         : never;
 
-type Merge<DI1, DI2> = Exclude<keyof DI1, "inject" | "injectContainer"> &
-    Exclude<keyof DI2, "inject" | "injectContainer"> extends never
+/**
+ * A recursive type transformation that appends multiple services to a container.
+ */
+export type AppendAll<Container, Services extends any[]> = Services extends [
+    infer Head,
+    ...infer Tail,
+]
+    ? Container extends string
+        ? Container
+        : Head extends DiService<string>
+          ? AppendAll<Append<Container, Head>, Tail>
+          : Container
+    : Container;
+
+type Merge<DI1, DI2> = Exclude<keyof DI1, keyof DiContainer> &
+    Exclude<keyof DI2, keyof DiContainer> extends never
     ? DI1 & DI2
     : `Containers have duplicated keys: ${(Exclude<
           keyof DI1,
-          "inject" | "injectContainer"
+          keyof DiContainer
       > &
-          Exclude<keyof DI2, "inject" | "injectContainer">) &
+          Exclude<keyof DI2, keyof DiContainer>) &
           string}`;
-
 
 /**
  * DiContainer manages service instantiation and dependency resolution.
@@ -71,23 +84,43 @@ export class DiContainer {
         let instance: S | undefined;
 
         if ((t as any)[name]) {
-            throw Error((/^inject(Container)?$/.test(name) ? "Reserv" : "Duplicat") + "ed service name: " + name);
+            throw Error(
+                (/^inject(Container|All)?$/.test(name)
+                    ? "Reserv"
+                    : "Duplicat") +
+                    "ed service name: " +
+                    name,
+            );
         }
 
-        (t as any)[name] = new Proxy(
-            Object.create(prototype),
-            {
-                get: (_, property) => {
-                    instance ||= ((t as any)[name] = new (dependency as any)(t));
-                    let value = (instance as any)[property];
-                    return typeof value == "function"
-                        ? value.bind(instance)
-                        : value;
-                }
+        (t as any)[name] = new Proxy(Object.create(prototype), {
+            get: (_, property) => {
+                instance ||= (t as any)[name] = new (dependency as any)(t);
+                let value = (instance as any)[property];
+                return typeof value == "function"
+                    ? value.bind(instance)
+                    : value;
             },
-        );
+        });
 
         return t as any;
+    }
+
+    /**
+     * Registers multiple services at once.
+     * Each service can depend on all others provided in the same call.
+     */
+    injectAll<S extends DiService<string>[]>(
+        ...dependencies: {
+            [K in keyof S]: new (
+                dependencies: AppendAll<this, S>,
+            ) => S[K];
+        }
+    ): AppendAll<this, S> {
+        return dependencies.reduce(
+            (t, v) => this.inject(v as any) as any,
+            this,
+        ) as any;
     }
 
     /**
