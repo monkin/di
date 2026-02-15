@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/di-sacala.svg)](https://www.npmjs.com/package/di-sacala)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`di-sacala` is a lightweight, type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`di-sacala` is a lightweight (472 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Container Composition**: Merge multiple containers together to share dependencies across different parts of your application.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
-- **Zero Runtime Dependencies**: Extremely lightweight.
+- **Zero Runtime Dependencies**: Extremely lightweight (472 bytes minified / 323 bytes gzipped).
 
 ## Installation
 
