@@ -59,14 +59,20 @@ export class LoggerService implements DiService<"logger"> {
 
 ### 2. Basic Injection
 
-Use `DiContainer` to register and resolve your services.
+Use `DiContainer` to register and resolve your services. You can register a single service or multiple services in one call.
 
 ```typescript
 import { DiContainer } from 'di-sacala';
 import { LoggerService } from './LoggerService';
+import { ConfigService } from './ConfigService';
 
+// Single service
 const container = new DiContainer()
     .inject(LoggerService);
+
+// Multiple services in one call
+const multiContainer = new DiContainer()
+    .inject(LoggerService, ConfigService);
 
 // Access the service directly on the container
 container.logger.log("Service is ready!");
@@ -182,8 +188,8 @@ container.inject(InjectService);
 
 The main class for managing services.
 
-- `inject(ServiceClass: new (di: this) => S): this & Di<S>`
-  Registers a service class. Returns the container instance, typed with the newly added service.
+- `inject(...ServiceClasses: new (di: any) => any): DiContainer`
+  Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
 - `injectContainer<DC extends DiContainer>(other: DC): this & DC`
   Copies all services from another container into this one. Returns the container instance, typed with the merged services.
 

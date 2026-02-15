@@ -16,7 +16,7 @@ describe("Reserved fields", () => {
         );
 
         const result = null as any as ReturnType<
-            typeof container.inject<ReservedService>
+            typeof container.inject<[ReservedService]>
         >;
         assertType<"Reserved field name: inject">(result);
     });

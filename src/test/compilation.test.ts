@@ -55,63 +55,63 @@ describe("Compilation errors", () => {
         });
     });
 
-    describe("injectAll - Missed dependencies", () => {
+    describe("inject - Multiple dependencies", () => {
         it("should fail to compile if dependency is missed", () => {
             const container = new DiContainer();
             // @ts-expect-error: S2 requires s1
-            container.injectAll(S2);
+            container.inject(S2);
         });
 
-        it("should compile if dependencies are provided in the same injectAll call", () => {
+        it("should compile if dependencies are provided in the same inject call", () => {
             const container = new DiContainer();
-            container.injectAll(S1, S2);
+            container.inject(S1, S2);
         });
 
-        it("should compile with mutual dependencies in the same injectAll call", () => {
+        it("should compile with mutual dependencies in the same inject call", () => {
             const container = new DiContainer();
-            container.injectAll(CircularA, CircularB);
+            container.inject(CircularA, CircularB);
         });
 
         it("should fail to compile if mutual dependency is missing from the call", () => {
             const container = new DiContainer();
             // @ts-expect-error: CircularA requires CircularB
-            container.injectAll(CircularA);
+            container.inject(CircularA);
         });
 
-        it("should fail to compile if one of multiple dependencies is missed in injectAll", () => {
+        it("should fail to compile if one of multiple dependencies is missed in inject", () => {
             const container = new DiContainer().inject(S1);
             // @ts-expect-error: S3 requires s1 and s2, but container only has s1
-            container.injectAll(S3);
+            container.inject(S3);
         });
 
-        it("should fail to compile if dependency is missed even if others are provided in injectAll", () => {
+        it("should fail to compile if dependency is missed even if others are provided in inject", () => {
             const container = new DiContainer();
             // @ts-expect-error: S3 requires s1 and s2. We provide S1, but not S2.
-            container.injectAll(S1, S3);
+            container.inject(S1, S3);
         });
 
         it("should compile if dependency was provided by a previous inject call", () => {
             const container = new DiContainer().inject(S1);
-            container.injectAll(S2);
+            container.inject(S2);
         });
     });
 
     describe("Duplicate service names (Type-level)", () => {
         it("inject should return error type for duplicates", () => {
             const container = new DiContainer().inject(S1);
-            type Result = ReturnType<typeof container.inject<S1>>;
+            type Result = ReturnType<typeof container.inject<[S1]>>;
             assertType<"Duplicate service name: s1">({} as Result);
         });
 
-        it("injectAll should return error type for duplicates within the call", () => {
+        it("inject should return error type for duplicates within the call", () => {
             const container = new DiContainer();
-            type Result = ReturnType<typeof container.injectAll<[S1, S1]>>;
+            type Result = ReturnType<typeof container.inject<[S1, S1]>>;
             assertType<"Duplicate service name: s1">({} as Result);
         });
 
-        it("injectAll should return error type for duplicates against existing container", () => {
+        it("inject should return error type for duplicates against existing container", () => {
             const container = new DiContainer().inject(S1);
-            type Result = ReturnType<typeof container.injectAll<[S1]>>;
+            type Result = ReturnType<typeof container.inject<[S1]>>;
             assertType<"Duplicate service name: s1">({} as Result);
         });
 
@@ -122,7 +122,7 @@ describe("Compilation errors", () => {
             assertType<"Containers have duplicated keys: s1">({} as Result);
         });
 
-        it("injectAll should return error type for reserved names", () => {
+        it("inject should return error type for reserved names", () => {
             class ReservedService implements DiService<"inject"> {
                 getServiceName() {
                     return "inject" as const;
@@ -130,7 +130,7 @@ describe("Compilation errors", () => {
             }
             const container = new DiContainer();
             type Result = ReturnType<
-                typeof container.injectAll<[ReservedService]>
+                typeof container.inject<[ReservedService]>
             >;
             assertType<"Reserved field name: inject">({} as Result);
         });

@@ -28,7 +28,7 @@ describe("Duplicated services", () => {
         );
 
         const result = null as any as ReturnType<
-            typeof container.inject<S1_Duplicate>
+            typeof container.inject<[S1_Duplicate]>
         >;
         assertType<"Duplicate service name: s1">(result);
     });

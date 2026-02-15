@@ -30,17 +30,17 @@ class ServiceC implements DiService<"c"> {
     }
 }
 
-describe("injectAll", () => {
+describe("inject", () => {
     it("should inject multiple services at once", () => {
-        const container = new DiContainer().injectAll(ServiceA, ServiceB);
+        const container = new DiContainer().inject(ServiceA, ServiceB);
         expect(container.a).toBeInstanceOf(ServiceA);
         expect(container.b).toBeInstanceOf(ServiceB);
         expect(container.b.getValue()).toBe("BA");
     });
 
-    it("should support services depending on each other in injectAll", () => {
+    it("should support services depending on each other in inject", () => {
         // Here ServiceC depends on A and B, and they are all injected together
-        const container = new DiContainer().injectAll(
+        const container = new DiContainer().inject(
             ServiceA,
             ServiceB,
             ServiceC,
@@ -48,34 +48,34 @@ describe("injectAll", () => {
         expect(container.c.getValue()).toBe("CABA");
     });
 
-    it("should support order-independent injection in injectAll (lazy loading)", () => {
+    it("should support order-independent injection in inject (lazy loading)", () => {
         // ServiceB depends on ServiceA, but we can list them in any order
-        const container = new DiContainer().injectAll(ServiceB, ServiceA);
+        const container = new DiContainer().inject(ServiceB, ServiceA);
         expect(container.b.getValue()).toBe("BA");
     });
 
-    it("should throw error on duplicate service names within injectAll", () => {
+    it("should throw error on duplicate service names within inject", () => {
         const container = new DiContainer();
-        expect(() => container.injectAll(ServiceA, ServiceA)).toThrow(
+        expect(() => container.inject(ServiceA, ServiceA)).toThrow(
             "Duplicated service name: a",
         );
     });
 
     it("should throw error on duplicate service names with existing container", () => {
         const container = new DiContainer().inject(ServiceA);
-        expect(() => container.injectAll(ServiceA)).toThrow(
+        expect(() => container.inject(ServiceA)).toThrow(
             "Duplicated service name: a",
         );
     });
 
-    it("should throw error on reserved names in injectAll", () => {
+    it("should throw error on reserved names in inject", () => {
         class InjectService implements DiService<"inject"> {
             getServiceName() {
                 return "inject" as any;
             }
         }
         const container = new DiContainer();
-        expect(() => container.injectAll(InjectService)).toThrow(
+        expect(() => container.inject(InjectService)).toThrow(
             "Reserved service name: inject",
         );
     });
