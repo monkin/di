@@ -1,5 +1,5 @@
 import { assertType, describe, expect, it } from "vitest";
-import { DiContainer, DiService } from "../di-sacala";
+import { DiContainer, type DiService } from "../di-sacala";
 
 class S1 implements DiService<"s1"> {
     getServiceName() {

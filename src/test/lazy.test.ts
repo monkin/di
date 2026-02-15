@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DiContainer, DiService } from "../di-sacala";
+import { DiContainer, type DiService } from "../di-sacala";
 
 describe("Lazy construction", () => {
     it("should not construct service on container field access", () => {

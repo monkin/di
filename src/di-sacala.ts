@@ -31,39 +31,47 @@ type CheckReservedField<Name, T> = Name extends keyof DiContainer
     ? `Reserved field name: ${Name}`
     : T;
 
-type Append<Container, Service extends DiService<string>> =
-    Service extends DiService<infer Name>
+type Append<
+    Container,
+    Service extends DiService<string>,
+> = Container extends object
+    ? Service extends DiService<infer Name>
         ? CheckReservedField<
               Name,
               Container extends { [Key in Name]: unknown }
                   ? `Duplicate service name: ${Name}`
                   : Container & Di<Service>
           >
-        : never;
+        : never
+    : Container;
 
 /**
  * A recursive type transformation that appends multiple services to a container.
  */
-export type AppendAll<Container, Services extends any[]> = Services extends [
-    infer Head,
-    ...infer Tail,
-]
-    ? Container extends string
-        ? Container
-        : Head extends DiService<string>
-          ? AppendAll<Append<Container, Head>, Tail>
-          : Container
+export type AppendAll<
+    Container,
+    Services extends any[],
+> = Container extends object
+    ? Services extends [infer Head, ...infer Tail]
+        ? Head extends DiService<string>
+            ? AppendAll<Append<Container, Head>, Tail>
+            : AppendAll<Container, Tail>
+        : Container
     : Container;
 
-type Merge<DI1, DI2> = Exclude<keyof DI1, keyof DiContainer> &
-    Exclude<keyof DI2, keyof DiContainer> extends never
-    ? DI1 & DI2
-    : `Containers have duplicated keys: ${(Exclude<
-          keyof DI1,
-          keyof DiContainer
-      > &
-          Exclude<keyof DI2, keyof DiContainer>) &
-          string}`;
+type Merge<DI1, DI2> = DI1 extends object
+    ? DI2 extends object
+        ? Exclude<keyof DI1, keyof DiContainer> &
+              Exclude<keyof DI2, keyof DiContainer> extends never
+            ? DI1 & DI2
+            : `Containers have duplicated keys: ${(Exclude<
+                  keyof DI1,
+                  keyof DiContainer
+              > &
+                  Exclude<keyof DI2, keyof DiContainer>) &
+                  string}`
+        : DI2
+    : DI1;
 
 /**
  * DiContainer manages service instantiation and dependency resolution.
@@ -118,7 +126,7 @@ export class DiContainer {
         }
     ): AppendAll<this, S> {
         return dependencies.reduce(
-            (t, v) => this.inject(v as any) as any,
+            (t, v) => t.inject(v as any) as any,
             this,
         ) as any;
     }
