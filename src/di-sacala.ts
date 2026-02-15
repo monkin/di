@@ -67,7 +67,7 @@ export class DiContainer {
     ): Append<this, S> {
         let t = this;
         let prototype = dependency.prototype;
-        let name: string = (prototype as any).getServiceName.call();
+        let name: string = (0, (prototype as any).getServiceName)();
         let instance: S | undefined;
 
         if ((t as any)[name]) {

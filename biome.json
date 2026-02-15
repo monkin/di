@@ -24,7 +24,8 @@
 				"noAssignInExpressions": "off"
 			},
 			"complexity": {
-				"noUselessThisAlias": "off"
+				"noUselessThisAlias": "off",
+				"noCommaOperator": "off"
 			}
 		}
 	},
