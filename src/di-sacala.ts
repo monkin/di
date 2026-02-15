@@ -80,55 +80,43 @@ type Merge<DI1, DI2> = DI1 extends object
  */
 export class DiContainer {
     /**
-     * Registers a new service by instantiating it with the current container instance.
-     * The service is then attached to the container using its `name` property.
-     */
-    inject<S extends DiService<string>>(
-        dependency: new (dependencies: Append<this, S>) => S,
-    ): Append<this, S> {
-        let t = this;
-        let prototype = dependency.prototype;
-        let name: string = (0, (prototype as any).getServiceName)();
-        let instance: S | undefined;
-
-        if ((t as any)[name]) {
-            throw Error(
-                (/^inject(Container|All)?$/.test(name)
-                    ? "Reserv"
-                    : "Duplicat") +
-                    "ed service name: " +
-                    name,
-            );
-        }
-
-        (t as any)[name] = new Proxy(Object.create(prototype), {
-            get: (_, property) => {
-                instance ||= (t as any)[name] = new (dependency as any)(t);
-                let value = (instance as any)[property];
-                return typeof value == "function"
-                    ? value.bind(instance)
-                    : value;
-            },
-        });
-
-        return t as any;
-    }
-
-    /**
-     * Registers multiple services at once.
+     * Register services.
      * Each service can depend on all others provided in the same call.
      */
-    injectAll<S extends DiService<string>[]>(
+    inject<S extends DiService<string>[]>(
         ...dependencies: {
             [K in keyof S]: new (
                 dependencies: AppendAll<this, S>,
             ) => S[K];
         }
     ): AppendAll<this, S> {
-        return dependencies.reduce(
-            (t, v) => t.inject(v as any) as any,
-            this,
-        ) as any;
+        return dependencies.reduce((t, dependency) => {
+            let prototype = dependency.prototype;
+            let name: string = (0, (prototype as any).getServiceName)();
+            let instance: S | undefined;
+
+            if ((t as any)[name]) {
+                throw Error(
+                    (/^inject(Container|All)?$/.test(name)
+                        ? "Reserv"
+                        : "Duplicat") +
+                        "ed service name: " +
+                        name,
+                );
+            }
+
+            (t as any)[name] = new Proxy(Object.create(prototype), {
+                get: (_, property) => {
+                    instance ||= (t as any)[name] = new (dependency as any)(t);
+                    let value = (instance as any)[property];
+                    return typeof value == "function"
+                        ? value.bind(instance)
+                        : value;
+                },
+            });
+
+            return t as any;
+        }, this) as any;
     }
 
     /**
