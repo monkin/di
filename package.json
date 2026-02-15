@@ -52,7 +52,7 @@
     "homepage": "https://github.com/monkin/di-sacala#readme",
     "license": "MIT",
     "devDependencies": {
-        "@biomejs/biome": "2.3.15",
+        "@biomejs/biome": "^2.3.15",
         "@types/node": "^25.0.9",
         "terser": "^5.46.0",
         "typescript": "^5.9.3",
