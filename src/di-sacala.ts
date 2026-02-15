@@ -63,7 +63,7 @@ export class DiContainer {
      * The service is then attached to the container using its `name` property.
      */
     inject<S extends DiService<string>>(
-        dependency: new (dependencies: this) => S,
+        dependency: new (dependencies: Append<this, S>) => S,
     ): Append<this, S> {
         let t = this;
         let prototype = dependency.prototype;
