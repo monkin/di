@@ -18,6 +18,7 @@
   - [5. Lazy](#5-lazy)
   - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
   - [7. Reserved Field Names](#7-reserved-field-names)
+  - [8. Circular Dependencies](#8-circular-dependencies)
 - [API Reference](#api-reference)
 - [Development](#development)
 - [License](#license)
@@ -59,7 +60,7 @@ export class LoggerService implements DiService<"logger"> {
 
 ### 2. Basic Injection
 
-Use `DiContainer` to register and resolve your services. You can register a single service or multiple services in one call.
+Use `DiContainer` to register and resolve your services. You can register a single service or multiple services in one call. When registering multiple services, the order doesn't matter; they can even depend on each other.
 
 ```typescript
 import { DiContainer } from 'di-sacala';
@@ -70,9 +71,9 @@ import { ConfigService } from './ConfigService';
 const container = new DiContainer()
     .inject(LoggerService);
 
-// Multiple services in one call
+// Multiple services in one call (order-independent)
 const multiContainer = new DiContainer()
-    .inject(LoggerService, ConfigService);
+    .inject(ConfigService, LoggerService);
 
 // Access the service directly on the container
 container.logger.log("Service is ready!");
@@ -112,6 +113,8 @@ const container = new DiContainer()
 
 container.user.getUser("42");
 ```
+
+When using `inject` with multiple services, they can depend on each other regardless of the order they are passed to the method.
 
 ### 4. Merging Containers
 
@@ -181,6 +184,37 @@ const container = new DiContainer();
 // Runtime Error: Reserved service name: inject
 container.inject(InjectService);
 ```
+
+### 8. Circular Dependencies
+
+`di-sacala` supports circular dependencies between services because it uses **Proxies** for lazy initialization. A service can depend on another service that depends back on it, provided that they don't try to access each other's methods or properties in their constructors.
+
+```typescript
+class ServiceA implements DiService<"a"> {
+    getServiceName() { return "a" as const; }
+    constructor(private di: Di<ServiceB>) {}
+    
+    doA() {
+        console.log("A doing something...");
+        this.di.b.doB();
+    }
+}
+
+class ServiceB implements DiService<"b"> {
+    getServiceName() { return "b" as const; }
+    constructor(private di: Di<ServiceA>) {}
+    
+    doB() {
+        console.log("B doing something...");
+    }
+}
+
+const container = new DiContainer().inject(ServiceA, ServiceB);
+container.a.doA(); // Works fine!
+```
+
+> [!IMPORTANT]
+> Do not access circular dependencies in the constructor, as this will trigger a stack overflow during instantiation.
 
 ## API Reference
 
