@@ -81,7 +81,7 @@ container.logger.log("Service is ready!");
 
 ### 3. Services with Dependencies
 
-To inject dependencies into a service, define its constructor to accept the container. You can use the `Di<T>` type helper to specify which services are required. It supports both a single service type or a tuple of multiple services.
+To inject dependencies into a service, define its constructor to accept the container. You can use the `Di<...T>` type helper to specify which services are required. It supports multiple services passed as separate arguments or as a tuple.
 
 ```typescript
 import { Di, DiService } from 'di-sacala';
@@ -96,8 +96,8 @@ export class UserService implements DiService<"user"> {
     // Single dependency:
     // constructor(private di: Di<LoggerService>) {}
 
-    // Multiple dependencies using a tuple:
-    constructor(private di: Di<[LoggerService, ConfigService]>) {}
+    // Multiple dependencies:
+    constructor(private di: Di<LoggerService, ConfigService>) {}
 
     getUser(id: string) {
         const prefix = this.di.config.get("userPrefix");
@@ -234,12 +234,12 @@ An interface that your service classes must implement.
 - `getServiceName(this: null): Name`
   Must return the unique name of the service as a string literal type.
 
-### `Di<S>`
+### `Di<...S>`
 
 A utility type to help define dependencies in your service constructors.
 
 - `Di<ServiceClass>`: Resolves to an object with the service name as the key and the service instance as the value.
-- `Di<[Service1, Service2]>`: Resolves to a merged object containing all specified services.
+- `Di<Service1, Service2, ...>`: Resolves to a merged object containing all specified services.
 
 ## Development
 

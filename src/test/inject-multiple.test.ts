@@ -24,7 +24,7 @@ class ServiceC implements DiService<"c"> {
     getServiceName() {
         return "c" as const;
     }
-    constructor(public deps: Di<[ServiceA, ServiceB]>) {}
+    constructor(public deps: Di<ServiceA, ServiceB>) {}
     getValue() {
         return `C${this.deps.a.getValue()}${this.deps.b.getValue()}`;
     }

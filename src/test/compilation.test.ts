@@ -18,7 +18,7 @@ class S3 implements DiService<"s3"> {
     getServiceName() {
         return "s3" as const;
     }
-    constructor(public deps: Di<[S1, S2]>) {}
+    constructor(public deps: Di<S1, S2>) {}
 }
 
 class CircularA implements DiService<"a"> {
@@ -133,6 +133,13 @@ describe("Compilation errors", () => {
                 typeof container.inject<[ReservedService]>
             >;
             assertType<"Reserved field name: inject">({} as Result);
+        });
+    });
+
+    describe("Di type helper", () => {
+        it("should not support tuple syntax", () => {
+            type Result = Di<[S1, S2]>;
+            assertType<never>({} as Result);
         });
     });
 });

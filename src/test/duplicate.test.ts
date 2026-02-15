@@ -50,7 +50,7 @@ describe("Duplicated services", () => {
     it("should allow injecting different services", () => {
         const container = new DiContainer().inject(S1).inject(S2);
 
-        assertType<DiContainer & Di<[S1, S2]>>(container);
+        assertType<DiContainer & Di<S1, S2>>(container);
     });
 
     it("should allow merging containers with different services", () => {

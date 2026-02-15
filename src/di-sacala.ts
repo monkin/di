@@ -13,19 +13,51 @@ export interface DiService<Name extends string> {
 }
 
 /**
- * A recursive type transformation that converts a Service (or tuple of Services)
- * into a mapped object type.
+ * A type transformation that converts one or more Services (passed as separate
+ * arguments) into a merged mapped object type.
  *
- * Example: Service<"logger"> -> { logger: Service<"logger"> }
- * Example: [Service<"a">, Service<"b">] -> { a: Service<"a"> } & { b: Service<"b"> }
+ * Example: Di<LoggerService> -> { logger: LoggerService }
+ * Example: Di<ServiceA, ServiceB> -> { a: ServiceA } & { b: ServiceB }
  */
-export type Di<S> = S extends [infer S1, ...infer Tail]
-    ? Di<S1> & Di<Tail>
-    : S extends []
-      ? unknown
-      : S extends DiService<infer Name>
-        ? { [Key in Name]: S }
-        : never;
+export type Di<
+    S1,
+    S2 = never,
+    S3 = never,
+    S4 = never,
+    S5 = never,
+    S6 = never,
+    S7 = never,
+    S8 = never,
+    S9 = never,
+    S10 = never,
+    S11 = never,
+    S12 = never,
+    S13 = never,
+    S14 = never,
+    S15 = never,
+    S16 = never,
+> = ToDi<S1> &
+    ToDi<S2> &
+    ToDi<S3> &
+    ToDi<S4> &
+    ToDi<S5> &
+    ToDi<S6> &
+    ToDi<S7> &
+    ToDi<S8> &
+    ToDi<S9> &
+    ToDi<S10> &
+    ToDi<S11> &
+    ToDi<S12> &
+    ToDi<S13> &
+    ToDi<S14> &
+    ToDi<S15> &
+    ToDi<S16>;
+
+type ToDi<S> = [S] extends [never]
+    ? unknown
+    : S extends DiService<infer Name>
+      ? { [Key in Name]: S }
+      : never;
 
 type CheckReservedField<Name, T> = Name extends keyof DiContainer
     ? `Reserved field name: ${Name}`
