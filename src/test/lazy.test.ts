@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DiContainer, type DiService } from "../di-sacala";
+import { type Di, DiContainer, type DiService } from "../di-sacala";
 
 describe("Lazy construction", () => {
     it("should not construct service on container field access", () => {
@@ -69,7 +69,7 @@ describe("Lazy construction", () => {
             getServiceName() {
                 return "b" as const;
             }
-            constructor(public di: { a: ServiceA }) {
+            constructor(public di: Di<ServiceA>) {
                 serviceBConstructed++;
             }
             doB() {

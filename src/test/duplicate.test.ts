@@ -1,5 +1,5 @@
 import { assertType, describe, expect, it } from "vitest";
-import { DiContainer, type DiService } from "../di-sacala";
+import { type Di, DiContainer, type DiService } from "../di-sacala";
 
 class S1 implements DiService<"s1"> {
     getServiceName() {
@@ -50,7 +50,7 @@ describe("Duplicated services", () => {
     it("should allow injecting different services", () => {
         const container = new DiContainer().inject(S1).inject(S2);
 
-        assertType<DiContainer & { s1: S1; s2: S2 }>(container);
+        assertType<DiContainer & Di<[S1, S2]>>(container);
     });
 
     it("should allow merging containers with different services", () => {

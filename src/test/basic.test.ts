@@ -54,9 +54,7 @@ describe("DiContainer", () => {
             getServiceName() {
                 return "dependent" as const;
             }
-            constructor(
-                private di: DiContainer & { randomNumber: RandomNumberService },
-            ) {}
+            constructor(private di: Di<RandomNumberService>) {}
             getWrappedRandom() {
                 return { value: this.di.randomNumber.next() };
             }
