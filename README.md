@@ -1,10 +1,10 @@
-# di-sacala
+# @monkin/di
 
-[![Tests](https://github.com/monkin/di-sacala/actions/workflows/test.yml/badge.svg)](https://github.com/monkin/di-sacala/actions/workflows/test.yml)
-[![NPM version](https://img.shields.io/npm/v/di-sacala.svg)](https://www.npmjs.com/package/di-sacala)
+[![Tests](https://github.com/monkin/di/actions/workflows/test.yml/badge.svg)](https://github.com/monkin/di/actions/workflows/test.yml)
+[![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`di-sacala` is a lightweight (472 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (472 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -35,7 +35,7 @@
 ## Installation
 
 ```bash
-npm install di-sacala
+npm install @monkin/di
 ```
 
 ## Usage
@@ -45,7 +45,7 @@ npm install di-sacala
 A service is a class that implements the `DiService` interface. It must implement a `getServiceName()` method which will be used as the key in the container. Use `as const` to ensure the name is treated as a literal type.
 
 ```typescript
-import { DiService } from 'di-sacala';
+import { DiService } from '@monkin/di';
 
 export class LoggerService implements DiService<"logger"> {
     getServiceName() {
@@ -63,7 +63,7 @@ export class LoggerService implements DiService<"logger"> {
 Use `DiContainer` to register and resolve your services. You can register a single service or multiple services in one call. When registering multiple services, the order doesn't matter; they can even depend on each other.
 
 ```typescript
-import { DiContainer } from 'di-sacala';
+import { DiContainer } from '@monkin/di';
 import { LoggerService } from './LoggerService';
 import { ConfigService } from './ConfigService';
 
@@ -84,7 +84,7 @@ container.logger.log("Service is ready!");
 To inject dependencies into a service, define its constructor to accept the container. You can use the `Di<...T>` type helper to specify which services are required. It supports multiple services passed as separate arguments or as a tuple.
 
 ```typescript
-import { Di, DiService } from 'di-sacala';
+import { Di, DiService } from '@monkin/di';
 import { LoggerService } from './LoggerService';
 import { ConfigService } from './ConfigService';
 
@@ -132,7 +132,7 @@ const appContainer = new DiContainer()
 
 ### 5. Lazy
 
-Services registered via `inject` are lazy by default. When you register a service, `di-sacala` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property). Once created, the same instance is reused for all subsequent accesses.
+Services registered via `inject` are lazy by default. When you register a service, `@monkin/di` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property). Once created, the same instance is reused for all subsequent accesses.
 
 ```typescript
 const container = new DiContainer()
@@ -150,7 +150,7 @@ service.doSomething();
 
 ### 6. Duplicate Service Name Protection
 
-`di-sacala` prevents registering multiple services with the same name. This protection works at both compile-time and runtime:
+`@monkin/di` prevents registering multiple services with the same name. This protection works at both compile-time and runtime:
 
 - **Type-level Check**: If you try to `inject` a service with a name that already exists in the container, TypeScript will report an error, and the resulting type will be a string literal describing the error.
 - **Runtime Check**: The `inject` and `injectContainer` methods will throw an `Error` if a duplicate key is detected.
@@ -187,7 +187,7 @@ container.inject(InjectService);
 
 ### 8. Circular Dependencies
 
-`di-sacala` supports circular dependencies between services because it uses **Proxies** for lazy initialization. A service can depend on another service that depends back on it, provided that they don't try to access each other's methods or properties in their constructors.
+`@monkin/di` supports circular dependencies between services because it uses **Proxies** for lazy initialization. A service can depend on another service that depends back on it, provided that they don't try to access each other's methods or properties in their constructors.
 
 ```typescript
 class ServiceA implements DiService<"a"> {

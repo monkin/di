@@ -6,8 +6,8 @@ import { transform } from "esbuild";
 export default defineConfig({
     build: {
         lib: {
-            entry: resolve(__dirname, "src/di-sacala.ts"),
-            name: "DiSacala",
+            entry: resolve(__dirname, "src/di.ts"),
+            name: "Di",
             fileName: "index",
         },
         minify: "terser",

@@ -1,13 +1,13 @@
 {
-    "name": "di-sacala",
+    "name": "@monkin/di",
     "version": "0.1.11",
     "description": "Small type-safe dependency injection lib",
     "type": "module",
     "main": "./dist/index.js",
-    "types": "./dist/di-sacala.d.ts",
+    "types": "./dist/di.d.ts",
     "exports": {
         ".": {
-            "types": "./dist/di-sacala.d.ts",
+            "types": "./dist/di.d.ts",
             "import": "./dist/index.js",
             "require": "./dist/index.umd.cjs"
         }
@@ -44,12 +44,12 @@
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/monkin/di-sacala.git"
+        "url": "git+https://github.com/monkin/di.git"
     },
     "bugs": {
-        "url": "https://github.com/monkin/di-sacala/issues"
+        "url": "https://github.com/monkin/di/issues"
     },
-    "homepage": "https://github.com/monkin/di-sacala#readme",
+    "homepage": "https://github.com/monkin/di#readme",
     "license": "MIT",
     "devDependencies": {
         "@biomejs/biome": "^2.3.15",
