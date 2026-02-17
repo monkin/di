@@ -129,9 +129,7 @@ export class DiContainer {
 
             if ((t as any)[name]) {
                 throw Error(
-                    (/^inject(Container)?$/.test(name)
-                        ? "Reserv"
-                        : "Duplicat") +
+                    (t.hasOwnProperty(name) ? "Duplicat" : "Reserv") +
                         "ed service name: " +
                         name,
                 );
