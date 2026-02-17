@@ -1,6 +1,6 @@
 {
     "name": "@monkin/di",
-    "version": "0.1.12",
+    "version": "0.1.13",
     "description": "Small type-safe dependency injection lib",
     "type": "module",
     "main": "./dist/index.js",
