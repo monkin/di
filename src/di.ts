@@ -129,7 +129,7 @@ export class DiContainer {
 
             if ((t as any)[name]) {
                 throw Error(
-                    (t.hasOwnProperty(name) ? "Duplicat" : "Reserv") +
+                    (name in DiContainer.prototype ? "Reserv" : "Duplicat") +
                         "ed service name: " +
                         name,
                 );
@@ -139,7 +139,7 @@ export class DiContainer {
                 get: (_, property) => {
                     instance ||= (t as any)[name] = new (dependency as any)(t);
                     let value = (instance as any)[property];
-                    return typeof value == "function"
+                    return (typeof value)[0] == "f"
                         ? value.bind(instance)
                         : value;
                 },
@@ -160,7 +160,7 @@ export class DiContainer {
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (let key in other) {
-            if (key in this) {
+            if ((this as any)[key]) {
                 throw Error("Containers have duplicated keys: " + key);
             }
         }
