@@ -136,9 +136,9 @@ export class DiContainer {
             }
 
             (t as any)[name] = new Proxy(Object.create(prototype), {
-                get: (_, property) => {
+                get: (_, property, value) => {
                     instance ||= (t as any)[name] = new (dependency as any)(t);
-                    let value = (instance as any)[property];
+                    value = (instance as any)[property];
                     return (typeof value)[0] == "f"
                         ? value.bind(instance)
                         : value;
