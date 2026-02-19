@@ -163,8 +163,9 @@ export class DiContainer {
             if ((this as any)[key]) {
                 throw Error("Containers have duplicated keys: " + key);
             }
+            (this as any)[key] = other[key];
         }
 
-        return Object.assign(this, other) as Merge<this, DC>;
+        return this as Merge<this, DC>;
     }
 }
