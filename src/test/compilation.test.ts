@@ -115,13 +115,6 @@ describe("Compilation errors", () => {
             assertType<"Duplicate service name: s1">({} as Result);
         });
 
-        it("injectContainer should return error type for duplicated keys", () => {
-            const c1 = new DiContainer().inject(S1);
-            const c2 = new DiContainer().inject(S1);
-            type Result = ReturnType<typeof c1.injectContainer<typeof c2>>;
-            assertType<"Containers have duplicated keys: s1">({} as Result);
-        });
-
         it("inject should return error type for reserved names", () => {
             class ReservedService implements DiService<"inject"> {
                 getServiceName() {

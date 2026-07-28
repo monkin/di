@@ -86,17 +86,4 @@ describe("DiContainer", () => {
         expect(counter2).toBe("1");
         expect(Number(rand2)).toBeGreaterThanOrEqual(0);
     });
-
-    it("should merge containers using injectContainer", () => {
-        const container1 = new DiContainer().inject(RandomNumberService);
-        const container2 = new DiContainer().inject(DelayService);
-
-        const merged = new DiContainer()
-            .injectContainer(container1)
-            .injectContainer(container2);
-
-        expect(merged.randomNumber).toBeInstanceOf(RandomNumberService);
-        expect(merged.delay).toBeInstanceOf(DelayService);
-        expect(merged.randomNumber.next()).toBeLessThan(1);
-    });
 });

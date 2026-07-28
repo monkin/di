@@ -93,20 +93,6 @@ export type AppendAll<
         : Container
     : Container;
 
-type Merge<DI1, DI2> = DI1 extends object
-    ? DI2 extends object
-        ? Exclude<keyof DI1, keyof DiContainer> &
-              Exclude<keyof DI2, keyof DiContainer> extends never
-            ? DI1 & DI2
-            : `Containers have duplicated keys: ${(Exclude<
-                  keyof DI1,
-                  keyof DiContainer
-              > &
-                  Exclude<keyof DI2, keyof DiContainer>) &
-                  string}`
-        : DI2
-    : DI1;
-
 const dispose = Symbol.dispose;
 
 /**
@@ -161,29 +147,6 @@ export class DiContainer implements Disposable {
 
             return t as any;
         }, this) as any;
-    }
-
-    /**
-     * Copies all service properties from another container into this one.
-     * Useful for composing containers or providing shared dependencies.
-     *
-     * @template DC - The type of the other DiContainer.
-     * @param other - The source container to copy services from.
-     * @returns The current container instance, typed with the merged services.
-     * @throws {Error} If any service name from the other container already exists in this container.
-     */
-    injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
-        for (let key in other) {
-            if (key != "_" && (key as any) !== dispose) {
-                if ((this as any)[key]) {
-                    throw Error("Containers have duplicated keys: " + key);
-                }
-                (this as any)[key] = other[key];
-            }
-        }
-        this._.unshift(other);
-
-        return this as Merge<this, DC>;
     }
 
     [Symbol.dispose]() {
