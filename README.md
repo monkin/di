@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (442 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (550 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -16,9 +16,10 @@
   - [3. Services with Dependencies](#3-services-with-dependencies)
   - [4. Merging Containers](#4-merging-containers)
   - [5. Lazy](#5-lazy)
-  - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
-  - [7. Reserved Field Names](#7-reserved-field-names)
-  - [8. Circular Dependencies](#8-circular-dependencies)
+  - [6. Disposing Services](#6-disposing-services)
+  - [7. Duplicate Service Name Protection](#7-duplicate-service-name-protection)
+  - [8. Reserved Field Names](#8-reserved-field-names)
+  - [9. Circular Dependencies](#9-circular-dependencies)
 - [API Reference](#api-reference)
 - [Development](#development)
 - [License](#license)
@@ -30,7 +31,8 @@
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Container Composition**: Merge multiple containers together to share dependencies across different parts of your application.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
-- **Zero Runtime Dependencies**: Extremely lightweight (442 bytes minified / 309 bytes gzipped).
+- **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created.
+- **Zero Runtime Dependencies**: Extremely lightweight (550 bytes minified / 364 bytes gzipped).
 
 ## Installation
 
@@ -148,7 +150,45 @@ console.log("Container ready");
 service.doSomething();
 ```
 
-### 6. Duplicate Service Name Protection
+### 6. Disposing Services
+
+`DiContainer` implements `Symbol.dispose`, so it works with the `using` declaration. Disposing a container calls `[Symbol.dispose]()` on every service that implements it.
+
+```typescript
+class ConnectionService implements DiService<"connection"> {
+    getServiceName() { return "connection" as const; }
+
+    [Symbol.dispose]() {
+        this.close();
+    }
+}
+
+{
+    using container = new DiContainer()
+        .inject(ConnectionService)
+        .inject(RepositoryService);
+
+    container.repository.findAll();
+} // ConnectionService is disposed here
+```
+
+Or dispose explicitly:
+
+```typescript
+container[Symbol.dispose]();
+```
+
+Details worth knowing:
+
+- **Lazy-friendly**: services that were never instantiated are *not* created just to be disposed.
+- **Reverse order**: services are disposed in reverse registration order, so a service is always disposed before the services it depends on. A service can safely use its dependencies inside its own `dispose`.
+- **Optional**: services without a `[Symbol.dispose]()` method are skipped.
+- **Shared services**: `injectContainer` copies service references, so a service reachable from two containers is disposed once per container. Dispose only the container that owns the services.
+
+> [!NOTE]
+> Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires a native `Symbol.dispose`, available from Node 20.5. The rest of the library still works on Node 18; only disposal does not.
+
+### 7. Duplicate Service Name Protection
 
 `@monkin/di` prevents registering multiple services with the same name. This protection works at both compile-time and runtime:
 
@@ -164,7 +204,7 @@ const container = new DiContainer()
 container.inject(AnotherLoggerService); 
 ```
 
-### 7. Reserved Field Names
+### 8. Reserved Field Names
 
 Since `DiContainer` uses a fluent API, certain names are reserved for its internal methods and cannot be used as service names:
 
@@ -185,7 +225,7 @@ const container = new DiContainer();
 container.inject(InjectService);
 ```
 
-### 8. Circular Dependencies
+### 9. Circular Dependencies
 
 `@monkin/di` supports circular dependencies between services because it uses **Proxies** for lazy initialization. A service can depend on another service that depends back on it, provided that they don't try to access each other's methods or properties in their constructors.
 
@@ -226,6 +266,8 @@ The main class for managing services.
   Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
 - `injectContainer<DC extends DiContainer>(other: DC): this & DC`
   Copies all services from another container into this one. Returns the container instance, typed with the merged services.
+- `[Symbol.dispose](): void`
+  Disposes every instantiated service in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
 
 ### `DiService<Name>`
 
