@@ -150,9 +150,9 @@ export class DiContainer implements Disposable {
     }
 
     [Symbol.dispose]() {
-        // drain, so services created while disposing are disposed too
-        while (this._.length) {
-            (this._.pop() as any)[dispose]?.();
+        let a: unknown;
+        while ((a = this._.pop())) {
+            (a as any)[dispose]?.();
         }
     }
 }

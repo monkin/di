@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (437 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (433 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
 - **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created.
-- **Zero Runtime Dependencies**: Extremely lightweight (437 bytes minified / 321 bytes gzipped).
+- **Zero Runtime Dependencies**: Extremely lightweight (433 bytes minified / 320 bytes gzipped).
 
 ## Installation
 
