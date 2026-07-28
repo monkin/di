@@ -116,7 +116,7 @@ const dispose = Symbol.dispose;
  */
 export class DiContainer implements Disposable {
     /**
-     * Registered services, in registration order, disposed in reverse.
+     * Instantiated services, in instantiation order, disposed in reverse.
      */
     private _: Partial<Disposable>[] = [];
 
@@ -134,7 +134,7 @@ export class DiContainer implements Disposable {
         return dependencies.reduce((t, dependency) => {
             let prototype = dependency.prototype;
             let name: string = (0, (prototype as any).getServiceName)();
-            let instance: S | undefined;
+            let instance: any;
 
             if ((t as any)[name]) {
                 throw Error(
@@ -144,22 +144,20 @@ export class DiContainer implements Disposable {
                 );
             }
 
-            t._.unshift(
-                ((t as any)[name] = new Proxy(Object.create(prototype), {
-                    get: (_, property, value) => {
-                        // don't create a service just to dispose it
-                        if (property !== dispose) {
-                            instance ||= (t as any)[name] = new (
-                                dependency as any
-                            )(t);
-                        }
-                        value = (instance as any)?.[property];
-                        return (typeof value)[0] == "f"
-                            ? value.bind(instance)
-                            : value;
-                    },
-                })),
-            );
+            (t as any)[name] = new Proxy(Object.create(prototype), {
+                get: (_, property, value) => {
+                    // services are registered for disposal once instantiated
+                    instance ||
+                        t._.unshift(
+                            (instance = (t as any)[name] =
+                                new (dependency as any)(t)),
+                        );
+                    value = instance[property];
+                    return (typeof value)[0] == "f"
+                        ? value.bind(instance)
+                        : value;
+                },
+            });
 
             return t as any;
         }, this) as any;

@@ -95,7 +95,7 @@ describe("Dispose", () => {
         expect(() => container[Symbol.dispose]()).not.toThrow();
     });
 
-    it("should dispose services in reverse registration order", () => {
+    it("should dispose services in reverse instantiation order", () => {
         const disposed: string[] = [];
 
         class ServiceA implements DiService<"a"> {
@@ -122,12 +122,48 @@ describe("Dispose", () => {
         }
 
         const container = new DiContainer().inject(ServiceA).inject(ServiceB);
+        container.a.foo();
         container.b.foo();
 
         container[Symbol.dispose]();
 
-        // Dependents must be disposed before their dependencies
+        // The most recently instantiated service is disposed first
         expect(disposed).toEqual(["b", "a"]);
+    });
+
+    it("should dispose a lazily resolved dependency before its dependent", () => {
+        const disposed: string[] = [];
+
+        class ServiceA implements DiService<"a"> {
+            getServiceName() {
+                return "a" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed.push("a");
+            }
+        }
+
+        class ServiceB implements DiService<"b"> {
+            getServiceName() {
+                return "b" as const;
+            }
+            constructor(public di: Di<ServiceA>) {}
+            foo() {
+                this.di.a.foo();
+            }
+            [Symbol.dispose]() {
+                disposed.push("b");
+            }
+        }
+
+        const container = new DiContainer().inject(ServiceA).inject(ServiceB);
+        // `a` is only instantiated inside `b.foo()`, so it is created last
+        container.b.foo();
+
+        container[Symbol.dispose]();
+
+        expect(disposed).toEqual(["a", "b"]);
     });
 
     it("should call dispose with the service as `this`", () => {
@@ -205,7 +241,7 @@ describe("Dispose", () => {
         expect(merged.b.foo()).toBe("b");
     });
 
-    it("should dispose services of every merged container in reverse order", () => {
+    it("should dispose merged containers at their merge position", () => {
         const disposed: string[] = [];
 
         class ServiceA implements DiService<"a"> {
@@ -248,7 +284,8 @@ describe("Dispose", () => {
         merged.c.foo();
 
         merged[Symbol.dispose]();
-        expect(disposed).toEqual(["c", "b", "a"]);
+        // Own services in reverse instantiation order, then the merged container
+        expect(disposed).toEqual(["c", "a", "b"]);
     });
 
     it("should keep merged containers' registries independent", () => {
@@ -318,6 +355,7 @@ describe("Dispose", () => {
             getServiceName() {
                 return "connection" as const;
             }
+            open() {}
             close() {
                 events.push("close");
             }
@@ -330,7 +368,10 @@ describe("Dispose", () => {
             getServiceName() {
                 return "repository" as const;
             }
-            constructor(private di: Di<ConnectionService>) {}
+            constructor(private di: Di<ConnectionService>) {
+                // Instantiating the dependency here keeps it alive longer
+                di.connection.open();
+            }
             query() {}
             [Symbol.dispose]() {
                 this.di.connection.close();
@@ -376,7 +417,7 @@ describe("Dispose", () => {
     });
 
     describe("service proxy", () => {
-        it("should expose dispose of an instantiated service without re-entering", () => {
+        it("should expose dispose of an instantiated service", () => {
             let disposed = 0;
 
             class DisposableService implements DiService<"disposable"> {
@@ -395,25 +436,6 @@ describe("Dispose", () => {
 
             proxy[Symbol.dispose]();
             expect(disposed).toBe(1);
-        });
-
-        it("should not construct a service when its dispose is accessed", () => {
-            let constructed = 0;
-
-            class LazyService implements DiService<"lazy"> {
-                getServiceName() {
-                    return "lazy" as const;
-                }
-                constructor() {
-                    constructed++;
-                }
-                [Symbol.dispose]() {}
-            }
-
-            const container = new DiContainer().inject(LazyService);
-
-            expect(container.lazy[Symbol.dispose]).toBeUndefined();
-            expect(constructed).toBe(0);
         });
     });
 });
