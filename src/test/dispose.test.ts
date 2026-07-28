@@ -177,20 +177,114 @@ describe("Dispose", () => {
         expect(disposed).toBe(1);
     });
 
-    it("should not copy the container's own dispose method on injectContainer", () => {
+    it("should not treat the internal registry as a service on injectContainer", () => {
         class ServiceA implements DiService<"a"> {
             getServiceName() {
                 return "a" as const;
             }
+            foo() {
+                return "a";
+            }
         }
 
-        const source = new DiContainer().inject(ServiceA);
-        const merged = new DiContainer().injectContainer(source);
+        class ServiceB implements DiService<"b"> {
+            getServiceName() {
+                return "b" as const;
+            }
+            foo() {
+                return "b";
+            }
+        }
 
-        expect(Object.keys(merged)).toEqual(["a"]);
-        expect(Object.getOwnPropertySymbols(merged as object)).not.toContain(
-            Symbol.dispose,
-        );
+        // Both containers carry a registry, which must not collide
+        const merged = new DiContainer()
+            .injectContainer(new DiContainer().inject(ServiceA))
+            .injectContainer(new DiContainer().inject(ServiceB));
+
+        expect(merged.a.foo()).toBe("a");
+        expect(merged.b.foo()).toBe("b");
+    });
+
+    it("should dispose services of every merged container in reverse order", () => {
+        const disposed: string[] = [];
+
+        class ServiceA implements DiService<"a"> {
+            getServiceName() {
+                return "a" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed.push("a");
+            }
+        }
+
+        class ServiceB implements DiService<"b"> {
+            getServiceName() {
+                return "b" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed.push("b");
+            }
+        }
+
+        class ServiceC implements DiService<"c"> {
+            getServiceName() {
+                return "c" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed.push("c");
+            }
+        }
+
+        const merged = new DiContainer()
+            .inject(ServiceA)
+            .injectContainer(new DiContainer().inject(ServiceB))
+            .inject(ServiceC);
+
+        merged.a.foo();
+        merged.b.foo();
+        merged.c.foo();
+
+        merged[Symbol.dispose]();
+        expect(disposed).toEqual(["c", "b", "a"]);
+    });
+
+    it("should keep merged containers' registries independent", () => {
+        const disposed: string[] = [];
+
+        class SharedService implements DiService<"shared"> {
+            getServiceName() {
+                return "shared" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed.push("shared");
+            }
+        }
+
+        class OwnService implements DiService<"own"> {
+            getServiceName() {
+                return "own" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed.push("own");
+            }
+        }
+
+        const source = new DiContainer().inject(SharedService);
+        const merged = new DiContainer()
+            .injectContainer(source)
+            .inject(OwnService);
+
+        merged.shared.foo();
+        merged.own.foo();
+
+        // Services registered after the merge must not leak back into the source
+        source[Symbol.dispose]();
+        expect(disposed).toEqual(["shared"]);
     });
 
     it("should work with the `using` declaration", () => {

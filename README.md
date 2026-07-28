@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (550 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (598 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@
 - **Container Composition**: Merge multiple containers together to share dependencies across different parts of your application.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
 - **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created.
-- **Zero Runtime Dependencies**: Extremely lightweight (550 bytes minified / 364 bytes gzipped).
+- **Zero Runtime Dependencies**: Extremely lightweight (598 bytes minified / 406 bytes gzipped).
 
 ## Installation
 
@@ -183,7 +183,7 @@ Details worth knowing:
 - **Lazy-friendly**: services that were never instantiated are *not* created just to be disposed.
 - **Reverse order**: services are disposed in reverse registration order, so a service is always disposed before the services it depends on. A service can safely use its dependencies inside its own `dispose`.
 - **Optional**: services without a `[Symbol.dispose]()` method are skipped.
-- **Shared services**: `injectContainer` copies service references, so a service reachable from two containers is disposed once per container. Dispose only the container that owns the services.
+- **Merged containers**: `injectContainer` registers the source container itself, so disposing the outer container also disposes the merged one, in the position where it was merged. Services registered after the merge do not leak back into the source container.
 
 > [!NOTE]
 > Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires a native `Symbol.dispose`, available from Node 20.5. The rest of the library still works on Node 18; only disposal does not.
@@ -210,6 +210,7 @@ Since `DiContainer` uses a fluent API, certain names are reserved for its intern
 
 - `inject`
 - `injectContainer`
+- `_` — the internal registry of services to dispose
 
 Similar to duplicate names, attempting to use a reserved name will trigger both a **Type-level Check** and a **Runtime Check**.
 
@@ -265,9 +266,9 @@ The main class for managing services.
 - `inject(...ServiceClasses: new (di: any) => any): DiContainer`
   Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
 - `injectContainer<DC extends DiContainer>(other: DC): this & DC`
-  Copies all services from another container into this one. Returns the container instance, typed with the merged services.
+  Copies all services from another container into this one. Returns the container instance, typed with the merged services. The source container is disposed together with this one.
 - `[Symbol.dispose](): void`
-  Disposes every instantiated service in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
+  Disposes every instantiated service, and every merged container, in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
 
 ### `DiService<Name>`
 

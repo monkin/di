@@ -20,4 +20,23 @@ describe("Reserved fields", () => {
         >;
         assertType<"Reserved field name: inject">(result);
     });
+
+    it("should reject `_`, the internal service registry", () => {
+        class UnderscoreService implements DiService<"_"> {
+            getServiceName(this: null) {
+                return "_" as const;
+            }
+        }
+
+        const container = new DiContainer();
+
+        expect(() => container.inject(UnderscoreService)).toThrow(
+            "ed service name: _",
+        );
+
+        const result = null as any as ReturnType<
+            typeof container.inject<[UnderscoreService]>
+        >;
+        assertType<"Reserved field name: _">(result);
+    });
 });

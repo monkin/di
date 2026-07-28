@@ -60,7 +60,8 @@ type ToDi<S> = [S] extends [never]
       : never;
 
 type CheckReservedField<Name, T> =
-    Name extends Extract<keyof DiContainer, string>
+    // `_` is the private service registry, invisible to `keyof`
+    Name extends Extract<keyof DiContainer, string> | "_"
         ? `Reserved field name: ${Name}`
         : T;
 
@@ -106,7 +107,7 @@ type Merge<DI1, DI2> = DI1 extends object
         : DI2
     : DI1;
 
-let dispose = Symbol.dispose;
+const dispose = Symbol.dispose;
 
 /**
  * DiContainer manages service instantiation and dependency resolution.
@@ -114,6 +115,11 @@ let dispose = Symbol.dispose;
  * extending its own type with each injected service.
  */
 export class DiContainer implements Disposable {
+    /**
+     * Registered services, in registration order, disposed in reverse.
+     */
+    private _: Partial<Disposable>[] = [];
+
     /**
      * Register services.
      * Each service can depend on all others provided in the same call.
@@ -138,20 +144,22 @@ export class DiContainer implements Disposable {
                 );
             }
 
-            (t as any)[name] = new Proxy(Object.create(prototype), {
-                get: (_, property, value) => {
-                    // don't create a service just to dispose it
-                    if (property !== dispose) {
-                        instance ||= (t as any)[name] = new (dependency as any)(
-                            t,
-                        );
-                    }
-                    value = (instance as any)?.[property];
-                    return (typeof value)[0] == "f"
-                        ? value.bind(instance)
-                        : value;
-                },
-            });
+            t._.unshift(
+                ((t as any)[name] = new Proxy(Object.create(prototype), {
+                    get: (_, property, value) => {
+                        // don't create a service just to dispose it
+                        if (property !== dispose) {
+                            instance ||= (t as any)[name] = new (
+                                dependency as any
+                            )(t);
+                        }
+                        value = (instance as any)?.[property];
+                        return (typeof value)[0] == "f"
+                            ? value.bind(instance)
+                            : value;
+                    },
+                })),
+            );
 
             return t as any;
         }, this) as any;
@@ -168,18 +176,21 @@ export class DiContainer implements Disposable {
      */
     injectContainer<DC extends DiContainer>(other: DC): Merge<this, DC> {
         for (let key in other) {
-            if ((this as any)[key]) {
-                throw Error("Containers have duplicated keys: " + key);
+            if (key != "_" && (key as any) !== dispose) {
+                if ((this as any)[key]) {
+                    throw Error("Containers have duplicated keys: " + key);
+                }
+                (this as any)[key] = other[key];
             }
-            (this as any)[key] = other[key];
         }
+        this._.unshift(other);
 
         return this as Merge<this, DC>;
     }
 
     [Symbol.dispose]() {
-        for (let key of Object.keys(this).reverse()) {
-            (this as any)[key][dispose]?.();
-        }
+        this._.forEach((service) => {
+            (service as any)[dispose]?.();
+        });
     }
 }
