@@ -134,7 +134,7 @@ export class DiContainer implements Disposable {
                 get: (_, property, value) => {
                     // services are registered for disposal once instantiated
                     instance ||
-                        t._.unshift(
+                        t._.push(
                             (instance = (t as any)[name] =
                                 new (dependency as any)(t)),
                         );
@@ -150,8 +150,9 @@ export class DiContainer implements Disposable {
     }
 
     [Symbol.dispose]() {
-        this._.forEach((service) => {
-            (service as any)[dispose]?.();
-        });
+        // drain, so services created while disposing are disposed too
+        while (this._.length) {
+            (this._.pop() as any)[dispose]?.();
+        }
     }
 }

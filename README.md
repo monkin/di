@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (430 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (437 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -30,7 +30,7 @@
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
 - **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created.
-- **Zero Runtime Dependencies**: Extremely lightweight (430 bytes minified / 317 bytes gzipped).
+- **Zero Runtime Dependencies**: Extremely lightweight (437 bytes minified / 321 bytes gzipped).
 
 ## Installation
 
@@ -169,7 +169,9 @@ Details worth knowing:
 - **Lazy-friendly**: a service is registered for disposal when it is *instantiated*, not when it is registered. Services that were never used are never created, so they are never disposed.
 - **Reverse instantiation order**: the most recently created service is disposed first. A service is therefore always disposed before any dependency it instantiated inside its own constructor, and it can safely use those dependencies in its `dispose`.
 - **Lazily resolved dependencies**: a dependency first touched from a method is created *after* its dependent, so it is disposed *before* it. If a service needs a dependency while disposing, touch that dependency in the constructor so it is created first.
+- **Created while disposing**: a service instantiated for the first time inside another service's `dispose` is disposed as part of the same teardown, right after the service that created it.
 - **Optional**: services without a `[Symbol.dispose]()` method are skipped.
+- **Idempotent**: the registry is drained as it is disposed, so calling `[Symbol.dispose]()` again does nothing.
 
 > [!NOTE]
 > Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires a native `Symbol.dispose`, available from Node 20.5. The rest of the library still works on Node 18; only disposal does not.

@@ -261,6 +261,85 @@ describe("Dispose", () => {
         ]);
     });
 
+    it("should dispose a service first instantiated while disposing", () => {
+        const events: string[] = [];
+
+        class ConnectionService implements DiService<"connection"> {
+            getServiceName() {
+                return "connection" as const;
+            }
+            close() {
+                events.push("close");
+            }
+            [Symbol.dispose]() {
+                events.push("connection disposed");
+            }
+        }
+
+        class RepositoryService implements DiService<"repository"> {
+            getServiceName() {
+                return "repository" as const;
+            }
+            constructor(private di: Di<ConnectionService>) {}
+            query() {}
+            [Symbol.dispose]() {
+                events.push("repository disposed");
+                // First access ever: the connection is created right here
+                this.di.connection.close();
+            }
+        }
+
+        class OtherService implements DiService<"other"> {
+            getServiceName() {
+                return "other" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                events.push("other disposed");
+            }
+        }
+
+        const container = new DiContainer().inject(
+            ConnectionService,
+            RepositoryService,
+            OtherService,
+        );
+        container.other.foo();
+        container.repository.query();
+
+        container[Symbol.dispose]();
+
+        // Nothing disposed twice, nothing skipped, the late service disposed
+        expect(events).toEqual([
+            "repository disposed",
+            "close",
+            "connection disposed",
+            "other disposed",
+        ]);
+    });
+
+    it("should be a no-op when disposed twice", () => {
+        let disposed = 0;
+
+        class DisposableService implements DiService<"disposable"> {
+            getServiceName() {
+                return "disposable" as const;
+            }
+            foo() {}
+            [Symbol.dispose]() {
+                disposed++;
+            }
+        }
+
+        const container = new DiContainer().inject(DisposableService);
+        container.disposable.foo();
+
+        container[Symbol.dispose]();
+        container[Symbol.dispose]();
+
+        expect(disposed).toBe(1);
+    });
+
     it("should allow a service named `dispose`", () => {
         let disposed = 0;
 
