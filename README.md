@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (433 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (448 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -29,8 +29,8 @@
 - **No Decorators**: No need for `reflect-metadata` or experimental decorators. Pure TypeScript.
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
-- **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created.
-- **Zero Runtime Dependencies**: Extremely lightweight (433 bytes minified / 320 bytes gzipped).
+- **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created, in reverse registration order.
+- **Zero Runtime Dependencies**: Extremely lightweight (448 bytes minified / 338 bytes gzipped).
 
 ## Installation
 
@@ -114,7 +114,7 @@ const container = new DiContainer()
 container.user.getUser("42");
 ```
 
-When using `inject` with multiple services, they can depend on each other regardless of the order they are passed to the method.
+When using `inject` with multiple services, they can depend on each other regardless of the order they are passed to the method. Order only matters for teardown: registering dependencies first, as above, means they outlive the services that use them. See [Disposing Services](#5-disposing-services).
 
 ### 4. Lazy
 
@@ -134,7 +134,7 @@ console.log("Container ready");
 service.doSomething();
 ```
 
-Instantiation is also the moment a service is registered for disposal — see below.
+Laziness does not affect teardown: the disposal order is fixed by the order services are registered in, not by when they are instantiated — see below.
 
 ### 5. Disposing Services
 
@@ -151,11 +151,12 @@ class ConnectionService implements DiService<"connection"> {
 
 {
     using container = new DiContainer()
+        .inject(ConfigService)
         .inject(ConnectionService)
         .inject(RepositoryService);
 
     container.repository.findAll();
-} // ConnectionService is disposed here
+} // Disposed here as: repository, connection, config
 ```
 
 Or dispose explicitly:
@@ -164,12 +165,15 @@ Or dispose explicitly:
 container[Symbol.dispose]();
 ```
 
+Services are disposed in the **reverse of the order they were registered**, whatever order they happened to be instantiated in. Register dependencies before the services that use them — the natural, foundations-first order — and teardown runs in the right direction on its own: every service is disposed before the things it depends on, so it can still use them in its own `[Symbol.dispose]()`.
+
 Details worth knowing:
 
-- **Lazy-friendly**: a service is registered for disposal when it is *instantiated*, not when it is registered. Services that were never used are never created, so they are never disposed.
-- **Reverse instantiation order**: the most recently created service is disposed first. A service is therefore always disposed before any dependency it instantiated inside its own constructor, and it can safely use those dependencies in its `dispose`.
-- **Lazily resolved dependencies**: a dependency first touched from a method is created *after* its dependent, so it is disposed *before* it. If a service needs a dependency while disposing, touch that dependency in the constructor so it is created first.
-- **Created while disposing**: a service instantiated for the first time inside another service's `dispose` is disposed as part of the same teardown, right after the service that created it.
+- **Order is static**: it comes from the `inject` calls, so it is the same on every run and does not shift when a code path happens to touch a service earlier or later.
+- **One continuous sequence**: arguments count left to right and calls count in order, so `inject(A, B).inject(C, D)` disposes `D`, `C`, `B`, `A`. Splitting services across `inject` calls never changes the result.
+- **Lazy-friendly**: services that were never used are never created, so they are never disposed. Reading `[Symbol.dispose]` off an unused service returns a no-op rather than constructing it just to tear it down.
+- **Created while disposing**: a service instantiated for the first time inside another service's `dispose` is still disposed in this teardown, as long as it was registered *earlier* than the service that created it.
+- **Do not reach forward**: a service registered *after* the one being disposed has already been torn down. Touching it during disposal silently creates a fresh instance that nothing will dispose, so register dependencies first.
 - **Optional**: services without a `[Symbol.dispose]()` method are skipped.
 - **Idempotent**: the registry is drained as it is disposed, so calling `[Symbol.dispose]()` again does nothing.
 
@@ -197,7 +201,7 @@ container.inject(AnotherLoggerService);
 Since `DiContainer` uses a fluent API, certain names are reserved for its internal methods and cannot be used as service names:
 
 - `inject`
-- `_` — the internal registry of instantiated services to dispose
+- `_` — the internal registry of registered services to dispose
 
 Similar to duplicate names, attempting to use a reserved name will trigger both a **Type-level Check** and a **Runtime Check**.
 
@@ -253,7 +257,7 @@ The main class for managing services.
 - `inject(...ServiceClasses: new (di: any) => any): DiContainer`
   Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
 - `[Symbol.dispose](): void`
-  Disposes every instantiated service in reverse instantiation order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
+  Disposes every instantiated service in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
 
 ### `DiService<Name>`
 

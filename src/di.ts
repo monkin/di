@@ -102,7 +102,7 @@ const dispose = Symbol.dispose;
  */
 export class DiContainer implements Disposable {
     /**
-     * Instantiated services, in instantiation order, disposed in reverse.
+     * Registered services, in registration order, disposed in reverse.
      */
     private _: Partial<Disposable>[] = [];
 
@@ -130,25 +130,33 @@ export class DiContainer implements Disposable {
                 );
             }
 
-            (t as any)[name] = new Proxy(Object.create(prototype), {
-                get: (_, property, value) => {
-                    // services are registered for disposal once instantiated
-                    instance ||
-                        t._.push(
-                            (instance = (t as any)[name] =
-                                new (dependency as any)(t)),
+            // services are registered for disposal when injected, not when
+            // instantiated, so the disposal order never depends on usage
+            (t as any)._.push(
+                ((t as any)[name] = new Proxy(Object.create(prototype), {
+                    get: (_, property, value) => {
+                        if (property === dispose && !instance) {
+                            // never instantiate a service just to dispose it
+                            return () => undefined;
+                        }
+                        instance ||= (t as any)[name] = new (dependency as any)(
+                            t,
                         );
-                    value = instance[property];
-                    return (typeof value)[0] == "f"
-                        ? value.bind(instance)
-                        : value;
-                },
-            });
+                        value = instance[property];
+                        return (typeof value)[0] == "f"
+                            ? value.bind(instance)
+                            : value;
+                    },
+                })),
+            );
 
             return t as any;
         }, this) as any;
     }
 
+    /**
+     * Dispose the instantiated services in reverse registration order.
+     */
     [Symbol.dispose]() {
         let a: unknown;
         while ((a = this._.pop())) {
