@@ -81,7 +81,7 @@ container.logger.log("Service is ready!");
 
 ### 3. Services with Dependencies
 
-To inject dependencies into a service, define its constructor to accept the container. You can use the `Di<...T>` type helper to specify which services are required. It supports multiple services passed as separate arguments or as a tuple.
+To inject dependencies into a service, define its constructor to accept the container. You can use the `Di<...T>` type helper to specify which services are required. Multiple services are passed as separate type arguments.
 
 ```typescript
 import { Di, DiService } from '@monkin/di';
@@ -272,6 +272,16 @@ A utility type to help define dependencies in your service constructors.
 
 - `Di<ServiceClass>`: Resolves to an object with the service name as the key and the service instance as the value.
 - `Di<Service1, Service2, ...>`: Resolves to a merged object containing all specified services.
+
+Services must be passed as **separate type arguments**. Tuple syntax is not supported:
+
+```typescript
+// Supported
+constructor(private di: Di<ServiceA, ServiceB>) {}
+
+// NOT supported - resolves to `never`, not to the merged service object
+constructor(private di: Di<[ServiceA, ServiceB]>) {}
+```
 
 ## Development
 
