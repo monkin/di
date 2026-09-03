@@ -55,13 +55,14 @@
         "access": "public"
     },
     "devDependencies": {
-        "@biomejs/biome": "^2.4.2",
-        "@types/node": "^25.2.3",
-        "esbuild": "^0.27.3",
-        "terser": "^5.46.0",
-        "typescript": "^5.9.3",
-        "vite": "^7.3.1",
-        "vite-plugin-dts": "^4.5.4",
-        "vitest": "^4.0.18"
+        "@biomejs/biome": "^2.5.12",
+        "@types/node": "^26.4.1",
+        "@typescript/typescript6": "^6.0.2",
+        "esbuild": "^0.28.2",
+        "terser": "^5.51.2",
+        "typescript": "^7.0.2",
+        "vite": "^8.2.2",
+        "vite-plugin-dts": "^5.1.0",
+        "vitest": "^5.0.0"
     }
 }
