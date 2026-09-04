@@ -92,6 +92,7 @@ describe("Dispose", () => {
         const container = new DiContainer().inject(PlainService);
         expect(container.plain.foo()).toBe("bar");
 
+        // @ts-expect-error: not Disposable without a disposable service
         expect(() => container[Symbol.dispose]()).not.toThrow();
     });
 

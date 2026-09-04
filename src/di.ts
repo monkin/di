@@ -1,22 +1,17 @@
 /**
  * Base interface for services in the DI system.
- * The `name` property is used as the key when the service is injected into a DiContainer.
+ * The service name is used as the key when the service is injected into a DiContainer.
  */
 export interface DiService<Name extends string> {
     /**
-     * The name of the service.
-     * This is used as the key when the service is injected into a DiContainer.
-     *
+     * The name of the service, used as the key when it is injected into a DiContainer.
      * The method is called without an instance context, so it can be used as a static property.
      */
     getServiceName(this: null): Name;
 }
 
 /**
- * A type transformation that converts one or more Services (passed as separate
- * arguments) into a merged mapped object type.
- *
- * Example: Di<LoggerService> -> { logger: LoggerService }
+ * Converts services passed as separate type arguments into a merged object type.
  * Example: Di<ServiceA, ServiceB> -> { a: ServiceA } & { b: ServiceB }
  */
 export type Di<
@@ -93,19 +88,23 @@ export type AppendAll<
         : Container
     : Container;
 
-const dispose = Symbol.dispose;
+/**
+ * `AsyncDisposable` if any of the services is, otherwise `Disposable` if any is.
+ */
+type Dispose<Service> = [Extract<Service, AsyncDisposable>] extends [never]
+    ? [Extract<Service, Disposable>] extends [never]
+        ? object
+        : Disposable
+    : AsyncDisposable;
 
 /**
- * DiContainer manages service instantiation and dependency resolution.
- * It uses a fluent interface to chain service registrations, dynamically
- * extending its own type with each injected service.
+ * Wraps the services into a container, passing error messages through.
  */
-export class DiContainer implements Disposable {
-    /**
-     * Registered services, in registration order, disposed in reverse.
-     */
-    private _: Partial<Disposable>[] = [];
+type ToContainer<Services> = Services extends object
+    ? DiContainer<Services>
+    : Services;
 
+interface Injector<Services> {
     /**
      * Register services.
      * Each service can depend on all others provided in the same call.
@@ -113,16 +112,45 @@ export class DiContainer implements Disposable {
     inject<S extends DiService<string>[]>(
         ...dependencies: {
             [K in keyof S]: new (
-                dependencies: AppendAll<this, S>,
+                dependencies: ToContainer<AppendAll<Services, S>>,
             ) => S[K];
         }
-    ): AppendAll<this, S> {
-        return dependencies.reduce((t, dependency) => {
+    ): ToContainer<AppendAll<Services, S>>;
+}
+
+/**
+ * A container exposing the services by name. It is `AsyncDisposable` if any
+ * service is, otherwise `Disposable` if any service is.
+ */
+// biome-ignore lint/complexity/noBannedTypes: `{}` is the empty services record
+export type DiContainer<Services = {}> = Services &
+    Dispose<Services[keyof Services]> &
+    Injector<Services>;
+
+const dispose: typeof Symbol.dispose = Symbol.dispose;
+const asyncDispose: typeof Symbol.asyncDispose = Symbol.asyncDispose;
+
+type Registered = Partial<
+    Record<typeof dispose | typeof asyncDispose, () => unknown>
+>;
+
+/**
+ * DiContainer manages service instantiation and dependency resolution.
+ * Its fluent `inject` extends the container type with each registered service.
+ */
+export const DiContainer: new () => DiContainer = class DiContainer {
+    /**
+     * Registered services, in registration order, disposed in reverse.
+     */
+    private _: Registered[] = [];
+
+    inject(...dependencies: (new (dependencies: any) => any)[]) {
+        return dependencies.reduce((t: any, dependency) => {
             let prototype = dependency.prototype;
-            let name: string = (0, (prototype as any).getServiceName)();
+            let name: string = (0, prototype.getServiceName)();
             let instance: any;
 
-            if ((t as any)[name]) {
+            if (t[name]) {
                 throw Error(
                     (name in DiContainer.prototype ? "Reserv" : "Duplicat") +
                         "ed service name: " +
@@ -130,18 +158,19 @@ export class DiContainer implements Disposable {
                 );
             }
 
-            // services are registered for disposal when injected, not when
-            // instantiated, so the disposal order never depends on usage
-            (t as any)._.push(
-                ((t as any)[name] = new Proxy(Object.create(prototype), {
+            // Registered for disposal when injected, so the order never depends on usage
+            t._.push(
+                (t[name] = new Proxy(Object.create(prototype), {
                     get: (_, property, value) => {
-                        if (property === dispose && !instance) {
-                            // never instantiate a service just to dispose it
+                        if (
+                            (property === dispose ||
+                                property === asyncDispose) &&
+                            !instance
+                        ) {
+                            // Never instantiate a service just to dispose it
                             return () => undefined;
                         }
-                        instance ||= (t as any)[name] = new (dependency as any)(
-                            t,
-                        );
+                        instance ||= t[name] = new dependency(t);
                         value = instance[property];
                         return (typeof value)[0] == "f"
                             ? value.bind(instance)
@@ -150,17 +179,27 @@ export class DiContainer implements Disposable {
                 })),
             );
 
-            return t as any;
-        }, this) as any;
+            return t;
+        }, this);
     }
 
     /**
      * Dispose the instantiated services in reverse registration order.
      */
-    [Symbol.dispose]() {
-        let a: unknown;
+    [dispose]() {
+        let a: Registered | undefined;
         while ((a = this._.pop())) {
-            (a as any)[dispose]?.();
+            a[dispose]?.();
         }
     }
-}
+
+    /**
+     * Like `Symbol.dispose`, awaiting each service; `Symbol.asyncDispose` is preferred.
+     */
+    async [asyncDispose]() {
+        let a: Registered | undefined;
+        while ((a = this._.pop())) {
+            await (a[asyncDispose] || a[dispose])?.();
+        }
+    }
+};

@@ -136,3 +136,105 @@ describe("Compilation errors", () => {
         });
     });
 });
+
+class DisposableService implements DiService<"disposable">, Disposable {
+    getServiceName() {
+        return "disposable" as const;
+    }
+    [Symbol.dispose]() {}
+}
+
+class AsyncDisposableService
+    implements DiService<"asyncDisposable">, AsyncDisposable
+{
+    getServiceName() {
+        return "asyncDisposable" as const;
+    }
+    async [Symbol.asyncDispose]() {}
+}
+
+class BothDisposableService
+    implements DiService<"both">, Disposable, AsyncDisposable
+{
+    getServiceName() {
+        return "both" as const;
+    }
+    [Symbol.dispose]() {}
+    async [Symbol.asyncDispose]() {}
+}
+
+describe("Disposable containers (Type-level)", () => {
+    it("should not be disposable without services", () => {
+        const container = new DiContainer();
+        // @ts-expect-error: nothing to dispose
+        assertType<Disposable>(container);
+        // @ts-expect-error: nothing to dispose
+        assertType<AsyncDisposable>(container);
+    });
+
+    it("should not be disposable with only plain services", () => {
+        const container = new DiContainer().inject(S1);
+        // @ts-expect-error: no service is Disposable
+        assertType<Disposable>(container);
+        // @ts-expect-error: no service is AsyncDisposable
+        assertType<AsyncDisposable>(container);
+    });
+
+    it("should be Disposable once a Disposable service is injected", () => {
+        const container = new DiContainer()
+            .inject(S1)
+            .inject(DisposableService);
+        assertType<Disposable>(container);
+        // @ts-expect-error: no service is AsyncDisposable
+        assertType<AsyncDisposable>(container);
+    });
+
+    it("should stay Disposable when a plain service is injected", () => {
+        const container = new DiContainer()
+            .inject(DisposableService)
+            .inject(S1);
+        assertType<Disposable>(container);
+    });
+
+    it("should be AsyncDisposable once an AsyncDisposable service is injected", () => {
+        const container = new DiContainer().inject(AsyncDisposableService);
+        assertType<AsyncDisposable>(container);
+        // @ts-expect-error: an AsyncDisposable container is not Disposable
+        assertType<Disposable>(container);
+    });
+
+    it("should lose Disposable when an AsyncDisposable service is injected", () => {
+        const container = new DiContainer()
+            .inject(DisposableService)
+            .inject(AsyncDisposableService);
+        assertType<AsyncDisposable>(container);
+        // @ts-expect-error: AsyncDisposable takes priority over Disposable
+        assertType<Disposable>(container);
+    });
+
+    it("should stay AsyncDisposable when a Disposable service is injected", () => {
+        const container = new DiContainer()
+            .inject(AsyncDisposableService)
+            .inject(DisposableService);
+        assertType<AsyncDisposable>(container);
+        // @ts-expect-error: AsyncDisposable takes priority over Disposable
+        assertType<Disposable>(container);
+    });
+
+    it("should be AsyncDisposable for a service implementing both", () => {
+        const container = new DiContainer().inject(BothDisposableService);
+        assertType<AsyncDisposable>(container);
+        // @ts-expect-error: AsyncDisposable takes priority over Disposable
+        assertType<Disposable>(container);
+    });
+
+    it("should be AsyncDisposable when both kinds are injected in one call", () => {
+        const container = new DiContainer().inject(
+            DisposableService,
+            AsyncDisposableService,
+        );
+        assertType<AsyncDisposable>(container);
+        // @ts-expect-error: AsyncDisposable takes priority over Disposable
+        assertType<Disposable>(container);
+    });
+});

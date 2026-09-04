@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (448 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (526 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -29,8 +29,8 @@
 - **No Decorators**: No need for `reflect-metadata` or experimental decorators. Pure TypeScript.
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
-- **Disposable**: Containers implement `Symbol.dispose`, so `using` tears down every service that was actually created, in reverse registration order.
-- **Zero Runtime Dependencies**: Extremely lightweight (448 bytes minified / 338 bytes gzipped).
+- **Disposable**: A container holding a `Disposable` service is `Disposable`, and one holding an `AsyncDisposable` service is `AsyncDisposable`. `using` or `await using` tears down every service that was actually created, in reverse registration order.
+- **Zero Runtime Dependencies**: Extremely lightweight (526 bytes minified / 369 bytes gzipped).
 
 ## Installation
 
@@ -138,7 +138,7 @@ Laziness does not affect teardown: the disposal order is fixed by the order serv
 
 ### 5. Disposing Services
 
-`DiContainer` implements `Symbol.dispose`, so it works with the `using` declaration. Disposing a container calls `[Symbol.dispose]()` on every service that implements it.
+A container becomes `Disposable` as soon as one of its services implements `Symbol.dispose`, so it works with the `using` declaration. Disposing a container calls `[Symbol.dispose]()` on every service that implements it. A container with no disposable services has nothing to dispose and is not `Disposable` at all.
 
 ```typescript
 class ConnectionService implements DiService<"connection"> {
@@ -165,20 +165,44 @@ Or dispose explicitly:
 container[Symbol.dispose]();
 ```
 
+#### Async disposal
+
+Once any service implements `Symbol.asyncDispose`, the container becomes `AsyncDisposable` instead, for the `await using` declaration. Async disposal awaits each service before moving on to the next, calling `[Symbol.asyncDispose]()` where available and `[Symbol.dispose]()` otherwise.
+
+```typescript
+class DatabaseService implements DiService<"database"> {
+    getServiceName() { return "database" as const; }
+
+    async [Symbol.asyncDispose]() {
+        await this.pool.end();
+    }
+}
+
+{
+    await using container = new DiContainer()
+        .inject(ConnectionService) // Disposable
+        .inject(DatabaseService); // AsyncDisposable
+
+    container.database.query();
+} // Awaits database, then disposes connection
+```
+
+`AsyncDisposable` takes priority. Whatever else is injected before or after, an `AsyncDisposable` container is not `Disposable` at the type level, so a plain `using` on it is a compile error rather than a teardown that is silently never awaited.
+
 Services are disposed in the **reverse of the order they were registered**, whatever order they happened to be instantiated in. Register dependencies before the services that use them — the natural, foundations-first order — and teardown runs in the right direction on its own: every service is disposed before the things it depends on, so it can still use them in its own `[Symbol.dispose]()`.
 
 Details worth knowing:
 
 - **Order is static**: it comes from the `inject` calls, so it is the same on every run and does not shift when a code path happens to touch a service earlier or later.
 - **One continuous sequence**: arguments count left to right and calls count in order, so `inject(A, B).inject(C, D)` disposes `D`, `C`, `B`, `A`. Splitting services across `inject` calls never changes the result.
-- **Lazy-friendly**: services that were never used are never created, so they are never disposed. Reading `[Symbol.dispose]` off an unused service returns a no-op rather than constructing it just to tear it down.
+- **Lazy-friendly**: services that were never used are never created, so they are never disposed. Reading `[Symbol.dispose]` or `[Symbol.asyncDispose]` off an unused service returns a no-op rather than constructing it just to tear it down.
 - **Created while disposing**: a service instantiated for the first time inside another service's `dispose` is still disposed in this teardown, as long as it was registered *earlier* than the service that created it.
 - **Do not reach forward**: a service registered *after* the one being disposed has already been torn down. Touching it during disposal silently creates a fresh instance that nothing will dispose, so register dependencies first.
-- **Optional**: services without a `[Symbol.dispose]()` method are skipped.
-- **Idempotent**: the registry is drained as it is disposed, so calling `[Symbol.dispose]()` again does nothing.
+- **Optional**: services with neither a `[Symbol.dispose]()` nor a `[Symbol.asyncDispose]()` method are skipped.
+- **Idempotent**: the registry is drained as it is disposed, so disposing the container again does nothing.
 
 > [!NOTE]
-> Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires a native `Symbol.dispose`, available from Node 20.5. The rest of the library still works on Node 18; only disposal does not.
+> Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires native `Symbol.dispose` and `Symbol.asyncDispose`, available from Node 20.5. The rest of the library still works on Node 18; only disposal does not.
 
 ### 6. Duplicate Service Name Protection
 
@@ -252,12 +276,14 @@ container.a.doA(); // Works fine!
 
 ### `DiContainer`
 
-The main class for managing services.
+The main class for managing services. Its type, `DiContainer<Services>`, exposes every registered service by name and is `AsyncDisposable` if any service is, otherwise `Disposable` if any service is.
 
 - `inject(...ServiceClasses: new (di: any) => any): DiContainer`
   Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
 - `[Symbol.dispose](): void`
-  Disposes every instantiated service in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
+  Present when a service is `Disposable` and none is `AsyncDisposable`. Disposes every instantiated service in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
+- `[Symbol.asyncDispose](): Promise<void>`
+  Present when any service is `AsyncDisposable`. Same order and laziness, awaiting each service in turn. Calls `[Symbol.asyncDispose]()` where available and `[Symbol.dispose]()` otherwise.
 
 ### `DiService<Name>`
 
