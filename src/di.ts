@@ -100,11 +100,12 @@ type Dispose<Service> = [Extract<Service, AsyncDisposable>] extends [never]
 /**
  * Wraps the services into a container, passing error messages through.
  */
-type ToContainer<Services> = Services extends object
-    ? DiContainer<Services>
-    : Services;
+type ToContainer<
+    Services,
+    Inherited extends PropertyKey,
+> = Services extends object ? DiContainer<Services, Inherited> : Services;
 
-interface Injector<Services> {
+interface Injector<Services, Inherited extends PropertyKey> {
     /**
      * Register services.
      * Each service can depend on all others provided in the same call.
@@ -112,20 +113,24 @@ interface Injector<Services> {
     inject<S extends DiService<string>[]>(
         ...dependencies: {
             [K in keyof S]: new (
-                dependencies: ToContainer<AppendAll<Services, S>>,
+                dependencies: ToContainer<AppendAll<Services, S>, Inherited>,
             ) => S[K];
         }
-    ): ToContainer<AppendAll<Services, S>>;
+    ): ToContainer<AppendAll<Services, S>, Inherited>;
 }
 
 /**
  * A container exposing the services by name. It is `AsyncDisposable` if any
- * service is, otherwise `Disposable` if any service is.
+ * own service is, otherwise `Disposable` if any own service is.
+ * `Inherited` names the services that belong to a parent container.
  */
-// biome-ignore lint/complexity/noBannedTypes: `{}` is the empty services record
-export type DiContainer<Services = {}> = Services &
-    Dispose<Services[keyof Services]> &
-    Injector<Services>;
+export type DiContainer<
+    // biome-ignore lint/complexity/noBannedTypes: `{}` is the empty services record
+    Services = {},
+    Inherited extends PropertyKey = never,
+> = Services &
+    Dispose<Services[Exclude<keyof Services, Inherited>]> &
+    Injector<Services, Inherited>;
 
 const dispose: typeof Symbol.dispose = Symbol.dispose;
 const asyncDispose: typeof Symbol.asyncDispose = Symbol.asyncDispose;
@@ -137,12 +142,24 @@ type Registered = Partial<
 /**
  * DiContainer manages service instantiation and dependency resolution.
  * Its fluent `inject` extends the container type with each registered service.
+ * A child container exposes the services of its parent, but disposes only its own.
  */
-export const DiContainer: new () => DiContainer = class DiContainer {
+export const DiContainer: new <
+    // biome-ignore lint/complexity/noBannedTypes: `{}` is the empty services record
+    P extends object = {},
+    I extends PropertyKey = never,
+>(
+    parent?: DiContainer<P, I>,
+) => DiContainer<P, keyof P> = class DiContainer {
     /**
      * Registered services, in registration order, disposed in reverse.
      */
     private _: Registered[] = [];
+
+    constructor(parent?: object) {
+        // Parent services resolve through the prototype chain; `_` stays own
+        parent && Object.setPrototypeOf(this, parent);
+    }
 
     inject(...dependencies: (new (dependencies: any) => any)[]) {
         return dependencies.reduce((t: any, dependency) => {
@@ -202,4 +219,4 @@ export const DiContainer: new () => DiContainer = class DiContainer {
             await (a[asyncDispose] || a[dispose])?.();
         }
     }
-};
+} as any;

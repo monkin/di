@@ -4,7 +4,7 @@
 [![NPM version](https://img.shields.io/npm/v/@monkin/di.svg)](https://www.npmjs.com/package/@monkin/di)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`@monkin/di` is a lightweight (526 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
+`@monkin/di` is a lightweight (560 bytes), type-safe dependency injection container for TypeScript. It leverages TypeScript's advanced type system to provide a fluent API for service registration and resolution with full type safety and autocompletion.
 
 ## Table of Contents
 
@@ -19,6 +19,7 @@
   - [6. Duplicate Service Name Protection](#6-duplicate-service-name-protection)
   - [7. Reserved Field Names](#7-reserved-field-names)
   - [8. Circular Dependencies](#8-circular-dependencies)
+  - [9. Child Containers](#9-child-containers)
 - [API Reference](#api-reference)
 - [Development](#development)
 - [License](#license)
@@ -30,7 +31,8 @@
 - **Fluent API**: Chainable service registration makes it easy to compose your container.
 - **Lazy**: Services are instantiated only on demand (when first accessed) and reused for subsequent accesses.
 - **Disposable**: A container holding a `Disposable` service is `Disposable`, and one holding an `AsyncDisposable` service is `AsyncDisposable`. `using` or `await using` tears down every service that was actually created, in reverse registration order.
-- **Zero Runtime Dependencies**: Extremely lightweight (526 bytes minified / 369 bytes gzipped).
+- **Child Containers**: A container can be created from a parent. It exposes the parent's services, and disposing it leaves the parent alone.
+- **Zero Runtime Dependencies**: Extremely lightweight (560 bytes minified / 384 bytes gzipped).
 
 ## Installation
 
@@ -272,18 +274,51 @@ container.a.doA(); // Works fine!
 > [!IMPORTANT]
 > Do not access circular dependencies in the constructor, as this will trigger a stack overflow during instantiation.
 
+### 9. Child Containers
+
+Pass a container to the `DiContainer` constructor to create a child of it. The child exposes every service of the parent, and services injected into the child can depend on them. This is the natural fit for scopes: application-wide services in a parent, and a short-lived child per request, job, or test.
+
+```typescript
+const app = new DiContainer()
+    .inject(ConfigService)
+    .inject(DatabaseService);
+
+class SessionService implements DiService<"session"> {
+    getServiceName() { return "session" as const; }
+    constructor(private di: Di<DatabaseService>) {}
+    [Symbol.dispose]() { /* release the session */ }
+}
+
+{
+    using request = new DiContainer(app).inject(SessionService);
+
+    request.session; // Own service
+    request.config; // Parent service
+} // Disposes session only; the parent is untouched
+```
+
+A parent service accessed through a child is created lazily as usual and shared with the parent: there is one instance, it lives on the parent, and the parent disposes it.
+
+- **One namespace**: a child cannot register a name the parent already uses. It is reported as a duplicate, both at the type level and at runtime, just like a duplicate within a single container.
+- **Own services only**: a child is `Disposable` or `AsyncDisposable` based on its own services, not the parent's. A child that registered nothing has nothing to dispose and is not `Disposable` at all, and a child of an `AsyncDisposable` parent with only `Disposable` services of its own is plain `Disposable`.
+- **Dispose children first**: a parent does not know about its children. Disposing the parent tears down the parent's services while the children keep running, so dispose every child before its parent.
+- **Nesting**: a child can itself be a parent. A grandchild sees the services of every ancestor.
+- **Register before branching**: the child's type is fixed when it is created. Services injected into the parent later are reachable at runtime but not in the child's type.
+
 ## API Reference
 
 ### `DiContainer`
 
-The main class for managing services. Its type, `DiContainer<Services>`, exposes every registered service by name and is `AsyncDisposable` if any service is, otherwise `Disposable` if any service is.
+The main class for managing services. Its type, `DiContainer<Services, Inherited>`, exposes every registered service by name and is `AsyncDisposable` if any own service is, otherwise `Disposable` if any own service is. `Inherited` is the union of the service names that belong to a parent container; it defaults to `never`.
 
+- `new DiContainer(parent?: DiContainer)`
+  Creates a container. With a `parent`, the new container exposes the parent's services and can register its own on top; see [Child Containers](#9-child-containers).
 - `inject(...ServiceClasses: new (di: any) => any): DiContainer`
   Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
 - `[Symbol.dispose](): void`
-  Present when a service is `Disposable` and none is `AsyncDisposable`. Disposes every instantiated service in reverse registration order. Services that were never used are not instantiated, and services without a `[Symbol.dispose]()` method are skipped.
+  Present when an own service is `Disposable` and none is `AsyncDisposable`. Disposes every instantiated own service in reverse registration order. Services that were never used are not instantiated, services without a `[Symbol.dispose]()` method are skipped, and the parent's services are not touched.
 - `[Symbol.asyncDispose](): Promise<void>`
-  Present when any service is `AsyncDisposable`. Same order and laziness, awaiting each service in turn. Calls `[Symbol.asyncDispose]()` where available and `[Symbol.dispose]()` otherwise.
+  Present when any own service is `AsyncDisposable`. Same order and laziness, awaiting each service in turn. Calls `[Symbol.asyncDispose]()` where available and `[Symbol.dispose]()` otherwise.
 
 ### `DiService<Name>`
 

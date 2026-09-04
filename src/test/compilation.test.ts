@@ -238,3 +238,68 @@ describe("Disposable containers (Type-level)", () => {
         assertType<Disposable>(container);
     });
 });
+
+describe("Parent container (Type-level)", () => {
+    it("should expose parent services on the child", () => {
+        const parent = new DiContainer().inject(S1);
+        const child = new DiContainer(parent);
+        assertType<S1>(child.s1);
+    });
+
+    it("should let a child service depend on a parent service", () => {
+        const parent = new DiContainer().inject(S1);
+        const child = new DiContainer(parent).inject(S2);
+        assertType<S2>(child.s2);
+    });
+
+    it("should fail to compile if a dependency is in neither container", () => {
+        const parent = new DiContainer().inject(S1);
+        const child = new DiContainer(parent);
+        // @ts-expect-error: S3 requires s2, which neither container has
+        child.inject(S3);
+    });
+
+    it("should expose grandparent services on a grandchild", () => {
+        const grandparent = new DiContainer().inject(S1);
+        const parent = new DiContainer(grandparent).inject(S2);
+        const child = new DiContainer(parent);
+        assertType<S1>(child.s1);
+        assertType<S2>(child.s2);
+    });
+
+    it("should return error type for a name the parent already has", () => {
+        const parent = new DiContainer().inject(S1);
+        const child = new DiContainer(parent);
+        type Result = ReturnType<typeof child.inject<[S1]>>;
+        assertType<"Duplicate service name: s1">({} as Result);
+    });
+
+    it("should not be disposable with only inherited disposable services", () => {
+        const parent = new DiContainer().inject(AsyncDisposableService);
+        const child = new DiContainer(parent);
+        // @ts-expect-error: disposing the child does not touch the parent
+        assertType<Disposable>(child);
+        // @ts-expect-error: disposing the child does not touch the parent
+        assertType<AsyncDisposable>(child);
+    });
+
+    it("should derive disposability from own services only", () => {
+        const parent = new DiContainer().inject(AsyncDisposableService);
+        const child = new DiContainer(parent).inject(DisposableService);
+        assertType<Disposable>(child);
+        // @ts-expect-error: the async service belongs to the parent
+        assertType<AsyncDisposable>(child);
+    });
+
+    it("should not be disposable as a grandchild with nothing of its own", () => {
+        const grandparent = new DiContainer().inject(DisposableService);
+        const parent = new DiContainer(grandparent).inject(
+            AsyncDisposableService,
+        );
+        const child = new DiContainer(parent);
+        // @ts-expect-error: nothing of its own to dispose
+        assertType<Disposable>(child);
+        // @ts-expect-error: nothing of its own to dispose
+        assertType<AsyncDisposable>(child);
+    });
+});
