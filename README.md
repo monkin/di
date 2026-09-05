@@ -44,7 +44,7 @@ npm install @monkin/di
 
 ### 1. Defining a Service
 
-A service is a class that implements the `DiService` interface. It must implement a `getServiceName()` method which will be used as the key in the container. Use `as const` to ensure the name is treated as a literal type.
+A service is a class that implements the `DiService` interface. It must implement a `getServiceName()` method which will be used as the key in the container. Use `as const` to ensure the name is treated as a literal type. The method is called on the class prototype, before any instance exists, so it must not use `this` or instance fields.
 
 ```typescript
 import { DiService } from '@monkin/di';
@@ -120,7 +120,7 @@ When using `inject` with multiple services, they can depend on each other regard
 
 ### 4. Lazy
 
-Services registered via `inject` are lazy by default. When you register a service, `@monkin/di` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property). Once created, the same instance is reused for all subsequent accesses.
+Services registered via `inject` are always lazy. When you register a service, `@monkin/di` creates a **Proxy** for it on the container. The actual service instance is only created when you first interact with it (e.g., call a method, access a property). Once created, the same instance is reused for all subsequent accesses.
 
 ```typescript
 const container = new DiContainer()
@@ -140,7 +140,7 @@ Laziness does not affect teardown: the disposal order is fixed by the order serv
 
 ### 5. Disposing Services
 
-A container becomes `Disposable` as soon as one of its services implements `Symbol.dispose`, so it works with the `using` declaration. Disposing a container calls `[Symbol.dispose]()` on every service that implements it. A container with no disposable services has nothing to dispose and is not `Disposable` at all.
+A container becomes `Disposable` as soon as one of its services implements `Symbol.dispose`, so it works with the `using` declaration. Disposing a container calls `[Symbol.dispose]()` on every service that implements it. A container with no disposable services has nothing to dispose, so its type is not `Disposable` at all.
 
 ```typescript
 class ConnectionService implements DiService<"connection"> {
@@ -158,7 +158,7 @@ class ConnectionService implements DiService<"connection"> {
         .inject(RepositoryService);
 
     container.repository.findAll();
-} // Disposed here as: repository, connection, config
+} // Disposed here: repository, then connection (config has nothing to dispose)
 ```
 
 Or dispose explicitly:
@@ -199,27 +199,30 @@ Details worth knowing:
 - **One continuous sequence**: arguments count left to right and calls count in order, so `inject(A, B).inject(C, D)` disposes `D`, `C`, `B`, `A`. Splitting services across `inject` calls never changes the result.
 - **Lazy-friendly**: services that were never used are never created, so they are never disposed. Reading `[Symbol.dispose]` or `[Symbol.asyncDispose]` off an unused service returns a no-op rather than constructing it just to tear it down.
 - **Created while disposing**: a service instantiated for the first time inside another service's `dispose` is still disposed in this teardown, as long as it was registered *earlier* than the service that created it.
-- **Do not reach forward**: a service registered *after* the one being disposed has already been torn down. Touching it during disposal silently creates a fresh instance that nothing will dispose, so register dependencies first.
+- **Do not reach forward**: a service registered *after* the one being disposed has already been torn down if it was used, and is silently created now, never to be disposed, if it was not. Either way it is the wrong direction, so register dependencies first.
 - **Optional**: services with neither a `[Symbol.dispose]()` nor a `[Symbol.asyncDispose]()` method are skipped.
 - **Idempotent**: the registry is drained as it is disposed, so disposing the container again does nothing.
 
 > [!NOTE]
-> Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires native `Symbol.dispose` and `Symbol.asyncDispose`, available from Node 20.5. The rest of the library still works on Node 18; only disposal does not.
+> Disposal requires TypeScript 5.2+ with a `lib` that includes the disposable types, e.g. `"lib": ["ES2020", "ESNext.Disposable"]` (otherwise the shipped `.d.ts` fails to compile unless `skipLibCheck` is on). At runtime it requires native `Symbol.dispose` and `Symbol.asyncDispose`, available from Node 18.18 and 20.5. The rest of the library still works on older Node 18 releases; only disposal does not.
 
 ### 6. Duplicate Service Name Protection
 
 `@monkin/di` prevents registering multiple services with the same name. This protection works at both compile-time and runtime:
 
-- **Type-level Check**: If you try to `inject` a service with a name that already exists in the container, TypeScript will report an error, and the resulting type will be a string literal describing the error.
-- **Runtime Check**: The `inject` method will throw an `Error` if a duplicate key is detected.
+- **Type-level Check**: If you `inject` a service with a name that already exists in the container, the call resolves to a string literal describing the error instead of a container. Anything you do with the result, such as chaining another `inject` or accessing a service, is a compile error. The call itself is rejected too when the service takes a `Di<...>` constructor argument.
+- **Runtime Check**: The `inject` method throws an `Error` if a duplicate name is detected.
 
 ```typescript
 const container = new DiContainer()
     .inject(LoggerService);
 
-// TypeScript Error: Type '"Duplicate service name: logger"' ...
 // Runtime Error: Duplicated service name: logger
-container.inject(AnotherLoggerService); 
+const broken = container.inject(AnotherLoggerService);
+
+// Type of `broken`: "Duplicate service name: logger"
+// TypeScript Error: Property 'logger' does not exist on type '"Duplicate service name: logger"'
+broken.logger;
 ```
 
 ### 7. Reserved Field Names
@@ -229,18 +232,19 @@ Since `DiContainer` uses a fluent API, certain names are reserved for its intern
 - `inject`
 - `_` — the internal registry of registered services to dispose
 
-Similar to duplicate names, attempting to use a reserved name will trigger both a **Type-level Check** and a **Runtime Check**.
+Similar to duplicate names, attempting to use a reserved name triggers both a **Type-level Check** and a **Runtime Check**. Names of `Object.prototype` members, such as `constructor`, `toString` or `hasOwnProperty`, are rejected at runtime as well, but not at the type level.
 
 ```typescript
 class InjectService implements DiService<"inject"> {
     getServiceName() { return "inject" as const; }
 }
 
-const container = new DiContainer();
-
-// TypeScript Error: Type '"Reserved field name: inject"' ...
 // Runtime Error: Reserved service name: inject
-container.inject(InjectService);
+const broken = new DiContainer().inject(InjectService);
+
+// Type of `broken`: "Reserved field name: inject"
+// TypeScript Error: Property 'inject' does not exist on type '"Reserved field name: inject"'
+broken.inject(LoggerService);
 ```
 
 ### 8. Circular Dependencies
@@ -314,7 +318,7 @@ The main class for managing services. Its type, `DiContainer<Services, Inherited
 - `new DiContainer(parent?: DiContainer)`
   Creates a container. With a `parent`, the new container exposes the parent's services and can register its own on top; see [Child Containers](#9-child-containers).
 - `inject(...ServiceClasses: new (di: any) => any): DiContainer`
-  Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container.
+  Registers one or more service classes. Returns the container instance, typed with the newly added services. Each service can depend on other services provided in the same call or already present in the container. For a duplicate or reserved name the return type is the error message as a string literal instead of a container; see [Duplicate Service Name Protection](#6-duplicate-service-name-protection).
 - `[Symbol.dispose](): void`
   Present when an own service is `Disposable` and none is `AsyncDisposable`. Disposes every instantiated own service in reverse registration order. Services that were never used are not instantiated, services without a `[Symbol.dispose]()` method are skipped, and the parent's services are not touched.
 - `[Symbol.asyncDispose](): Promise<void>`
@@ -325,14 +329,14 @@ The main class for managing services. Its type, `DiContainer<Services, Inherited
 An interface that your service classes must implement.
 
 - `getServiceName(this: null): Name`
-  Must return the unique name of the service as a string literal type.
+  Must return the unique name of the service as a string literal type. It is called on the prototype without an instance, so it cannot use `this`.
 
 ### `Di<...S>`
 
 A utility type to help define dependencies in your service constructors.
 
 - `Di<ServiceClass>`: Resolves to an object with the service name as the key and the service instance as the value.
-- `Di<Service1, Service2, ...>`: Resolves to a merged object containing all specified services.
+- `Di<Service1, Service2, ...>`: Resolves to a merged object containing all specified services, up to 16 of them.
 
 Services must be passed as **separate type arguments**. Tuple syntax is not supported:
 
